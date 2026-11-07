@@ -1,0 +1,330 @@
+/* Spotter: state, rendering, actions */
+const KEY='spotter-demo-v13';
+try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+if(!S||S.v!==13||S.seededOn!==today())S=seed();
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("This browser couldn't keep your changes. They last until you close the page.")}}
+
+function renderDemo(){
+  const opts=S.coaches.map(co=>`<optgroup label="${esc(co.name)}'s side"><option value="coach:${co.id}">Coach · ${esc(co.name)}${co.onboarded===false?' (first login)':''}</option>${S.clients.filter(c=>c.coachId===co.id).map(c=>`<option value="client:${c.id}">Client · ${esc(c.name)}${c.archived?' (archived)':isInvited(c)?' (invited)':''}</option>`).join('')}</optgroup>`).join('');
+  $('#demo').innerHTML=`<span class="tag">${SPOTTER_MARK}Spotter</span><label for="who">Viewing as <select id="who">${opts}</select></label>
+  <span class="conn">Client phone <span class="seg" role="group" aria-label="Client phone connection"><button class="${S.online?'on':''}" data-act="online" data-v="1">Online</button><button class="${S.online?'':'on'}" data-act="online" data-v="0">Offline</button></span></span>
+  <button class="link" data-act="reset">Reset sample data</button>`;
+  $('#who').value=`${ui.user.role}:${ui.user.id}`;
+}
+function render(){
+  applyTheme();
+  renderDemo();
+  $('#app').innerHTML=ui.user.role==='coach'?coachApp():clientApp();
+  const m=$('#msgs');if(m)m.scrollTop=m.scrollHeight;
+  if(ui.focus){const el=document.getElementById(ui.focus);if(el)el.focus();ui.focus=null}
+  renderSheet();
+}
+function renderSheet(){
+  const sh=$('#sheet');
+  if(ui.themeSheet){sh.innerHTML=themeSheet();return}
+  if(ui.notifSheet){sh.innerHTML=notifSheet();return}
+  if(ui.finishing&&ui.user.role==='client'){sh.innerHTML=finishSheet(client(ui.user.id));return}
+  if(ui.swapRow&&ui.user.role==='client'){sh.innerHTML=swapSheet(client(ui.user.id));return}
+  if(ui.remSheet&&ui.user.role==='client'){sh.innerHTML=reminderSheet(client(ui.user.id));return}
+  if(ui.nameSheet&&ui.user.role==='client'){sh.innerHTML=nameSheet(client(ui.user.id));return}
+  if(!ui.preview){sh.innerHTML='';return}
+  const e=exById(ui.preview);
+  sh.innerHTML=`<div class="card hud sheetcard" role="dialog" aria-label="${esc(e.name)}"><div class="section-hd"><div><h2>${esc(e.name)}</h2><p class="hint">${esc(e.group)} · ${e.video?'your video':'animation'}</p></div><button class="icon-btn" data-act="close-sheet" aria-label="Close">✕</button></div>
+  <div class="demo hud">${anim(e)}<span class="scan" aria-hidden="true"></span></div>
+  <label class="btn" for="vid-${e.id}">${e.video?'Replace video':'Use my own video instead'}<input type="file" id="vid-${e.id}" data-vid="${e.id}" accept="video/mp4,video/webm,video/quicktime" hidden></label>
+  ${e.video&&!e.custom?`<button class="btn ghost" data-act="clear-video" data-id="${e.id}">Go back to the animation</button>`:''}
+  ${e.custom?`<button class="btn ghost" data-act="del-ex" data-id="${e.id}">Delete this exercise</button>`:''}</div>`;
+}
+/* low energy today: longer breaks so every rep can still be finished */
+function restBonus(c){const r=c.readiness[today()];if(!r||!pref(c,'extraRest'))return 0;const sc=readyScore(r);return sc<55?60:sc<75?30:0}
+function closeSheets(){ui.preview=null;ui.finishing=null;ui.swapRow=null;ui.remSheet=false;ui.nameSheet=false;ui.themeSheet=false;ui.notifSheet=false;render()}
+function newClient(o){return{id:uid(),logs:[],weights:[],photos:[],messages:[],notes:[],mealTicks:{},meals:null,plan:null,session:null,readiness:{},progressions:[],planHistory:[],swaps:{},swapFeed:[],measures:[],reminder:{on:false,time:'07:00'},coachRead:0,notesSeen:0,status:'active',...o}}
+function shrinkImage(file,max,done){const img=new Image();img.onload=()=>{const k=Math.min(1,max/Math.max(img.width,img.height)),cv=document.createElement('canvas');cv.width=Math.round(img.width*k);cv.height=Math.round(img.height*k);cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);URL.revokeObjectURL(img.src);done(cv.toDataURL('image/png'))};img.onerror=()=>toast("That file couldn't be read as an image. Try a JPG or PNG.");img.src=URL.createObjectURL(file)}
+let toastT;
+function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,3400)}
+
+/* rest timer + session clock */
+let timer=null;
+function startTimer(sec,label){if(!sec){stopTimer();return}timer={end:Date.now()+sec*1000,total:sec,label,over:false};tickTimer()}
+function stopTimer(){timer=null;$('#timer').hidden=true}
+function tickTimer(){
+  const el=$('#elapsed');if(el&&ui.user.role==='client'){const c=client(ui.user.id);if(c.session&&c.session.startedAt)el.textContent=elapsed(c.session.startedAt)}
+  const t=$('#timer');if(!timer){t.hidden=true;return}
+  const left=Math.max(0,Math.ceil((timer.end-Date.now())/1000));
+  if(left===0&&!timer.over){timer.over=true;timer.overAt=Date.now();try{if(ui.user.role!=='client'||pref(client(ui.user.id),'vibrate'))navigator.vibrate&&navigator.vibrate([200,100,200])}catch(e){}}
+  if(timer.over&&Date.now()-timer.overAt>4000){stopTimer();return}
+  t.hidden=false;t.className=timer.over?'over':'';
+  const pct=timer.over?100:100*(1-(timer.end-Date.now())/(timer.total*1000));
+  t.innerHTML=`<span class="t mono">${timer.over?'GO':left>=60?fmtRest(left):left+'s'}</span><span class="tl"><span>${timer.over?'Rest is over. Next set.':'Resting · '+esc(timer.label)}</span><span class="bar"><i style="width:${pct}%"></i></span></span>${timer.over?'':'<button data-act="timer-add">+15s</button>'}<button data-act="timer-skip">${timer.over?'Close':'Skip'}</button>`;
+}
+setInterval(tickTimer,250);
+
+/* PR celebration */
+function confetti(){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const cv=$('#fx'),ctx=cv.getContext('2d'),W=cv.width=innerWidth,H=cv.height=innerHeight,col=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+  const ps=Array.from({length:140},()=>({x:W/2,y:H*.4,vx:(Math.random()-.5)*14,vy:-Math.random()*14-4,s:2+Math.random()*4,r:Math.random()*6,c:Math.random()<.75?col:'#ffffff'}));
+  const t0=performance.now();cv.hidden=false;
+  (function f(t){ctx.clearRect(0,0,W,H);ps.forEach(p=>{p.vy+=.45;p.x+=p.vx;p.y+=p.vy;p.r+=.2;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.r);ctx.fillStyle=p.c;ctx.fillRect(-p.s,-p.s/2,p.s*2,p.s);ctx.restore()});if(t-t0<1800)requestAnimationFrame(f);else{ctx.clearRect(0,0,W,H);cv.hidden=true}})(t0);
+}
+
+/* actions */
+const curDraft=()=>ui.drafts[ui.clientId];
+const findDay=id=>curDraft().days.find(d=>d.id===id);
+const mealDraftDay=()=>ui.mealDrafts[ui.clientId].days[ui.mealDay??weekIdx(today())];
+function move(a,i,j){if(j<0||j>=a.length)return;const[x]=a.splice(i,1);a.splice(j,0,x)}
+function notify(c,text,go='today'){c.notes.unshift({id:uid(),text,go,ts:Date.now()})}
+function newDay(name,rest=false){return{id:uid(),name:rest?'':name,rest,exercises:[]}}
+function freshIds(days){days=clone(days);days.forEach(d=>{d.id=uid();delete d._ex;delete d._name;d.exercises.forEach(r=>r.id=uid())});return days}
+function freshMeals(d){d=clone(d);d.meals.forEach(m=>{m.id=uid();m.foods.forEach(f=>f.id=uid())});return d}
+function nextMonday(){const t=today(),m=mondayOf(t);return m===t?t:addDays(m,7)}
+const blankFood=()=>({id:uid(),food:'',portion:'',kcal:'',protein:''});
+const ACT={
+  'open-report'(el){ui.view='reports';ui.repClient=el.dataset.id;ui.repTab=el.dataset.tab||'overview';ui.cal=null;ui.strAll=false;scrollTo(0,0)},
+  nav(el){if(el.dataset.v==='reports')ui.repClient=null;ui.view=el.dataset.v;ui.chooser=null;ui.preview=null;ui.olEx=null;ui.confirm=null;scrollTo(0,0)},
+  'open-client'(el){ui.view='client';ui.clientId=el.dataset.id;ui.tab='workouts';ui.olEx=null;ui.mealDay=null;ui.confirm=null;scrollTo(0,0)},
+  tab(el){ui.tab=el.dataset.v;ui.olEx=null},
+  'toggle-past'(){ui.showPast=!ui.showPast;ui.confirm=null},
+  'ask-archive'(el){ui.confirm={id:el.dataset.id,kind:'archive'};scrollTo(0,0)},
+  'ask-delete'(el){ui.confirm={id:el.dataset.id,kind:'delete'}},
+  'cancel-confirm'(){ui.confirm=null},
+  'archive-client'(el){const c=client(el.dataset.id);c.archived=true;c.archivedAt=today();ui.confirm=null;ui.view='clients';ui.showPast=true;save();toast(`${c.name} moved to past clients. You can restore them anytime.`)},
+  'restore-client'(el){const c=client(el.dataset.id);c.archived=false;delete c.archivedAt;save();toast(`${c.name} is active again.`)},
+  'delete-client'(el){const c=client(el.dataset.id);S.clients=S.clients.filter(x=>x.id!==c.id);ui.confirm=null;ui.view='clients';if(ui.user.id===c.id)ui.user={role:'coach',id:c.coachId};save();toast(`${c.name} and their history were deleted.`)},
+  'new-plan'(){ui.chooser=ui.clientId},
+  'close-chooser'(){ui.chooser=null},
+  'plan-blank'(){ui.drafts[ui.clientId]={isNew:true,name:'New routine',startDate:nextMonday(),days:WK.map((_,i)=>newDay('',![0,2,4].includes(i)))};ui.openDay=null;ui.chooser=null},
+  'plan-template'(el){const t=S.templates.find(x=>x.id===el.dataset.id);ui.drafts[ui.clientId]={isNew:true,name:t.name,startDate:nextMonday(),days:toWeek(freshIds(t.days))};ui.chooser=null;toast(`Loaded “${t.name}”. Adjust weights for this client, then save.`)},
+  'plan-copy'(el){const o=client(el.dataset.id);ui.drafts[ui.clientId]={isNew:true,name:o.plan.name,startDate:nextMonday(),days:toWeek(freshIds(o.plan.days))};ui.chooser=null;toast(`Copied ${first(o.name)}'s plan. Adjust weights, then save.`)},
+  "edit-plan"(){const c=client(ui.clientId),d={...clone(c.plan),isNew:false};d.days=toWeek(d.days);for(const day of d.days)for(const r of day.exercises)if(progOf(r).type==="weekly"&&hasW(r.weight)){r.weight=setWeight(r,0,today(),c.plan);r.since=mondayOf(today())}ui.drafts[c.id]=d;ui.openDay=null},
+  "prog-type"(el){const r=findDay(el.dataset.day).exercises.find(x=>x.id===el.dataset.row);r.prog={...progOf(r),type:el.dataset.v};if(el.dataset.v==="weekly")r.since=curDraft().isNew?undefined:mondayOf(today())},
+  discard(){delete ui.drafts[ui.clientId];ui.saveWhen=null},
+  'open-day'(el){ui.openDay=el.dataset.day===openDayId()?'':el.dataset.day},
+  'add-day'(){const d=curDraft();d.days.push(newDay(`Day ${d.days.filter(x=>!x.rest).length+1}`));ui.openDay=d.days[d.days.length-1].id;ui.focus='dn-'+ui.openDay},
+  'add-rest'(){const d=curDraft();d.days.push(newDay('',true));ui.openDay=d.days[d.days.length-1].id},
+  'toggle-rest'(el){const day=findDay(el.dataset.day);day.rest=!day.rest;if(day.rest){day._ex=day.exercises;day.exercises=[];day._name=day.name;day.name=''}else{day.exercises=day._ex||[];day.name=day._name||'';delete day._ex;delete day._name;ui.focus='dn-'+day.id}},
+  'copy-day-to'(el){const d=curDraft(),i=d.days.findIndex(x=>x.id===el.dataset.day),to=+el.dataset.to,cp=freshIds([d.days[i]])[0];d.days[to]=cp;toast(`${WKL[i]} copied to ${WKL[to]}.`)},
+  'copy-day'(el){const d=curDraft(),i=d.days.findIndex(x=>x.id===el.dataset.day),cp=freshIds([d.days[i]])[0];if(!cp.rest)cp.name+=' (copy)';d.days.splice(i+1,0,cp);ui.openDay=cp.id;toast('Day copied. Rename it and adjust the exercises.')},
+  'del-day'(el){const d=curDraft();if(d.days.length===1){toast('A plan needs at least one day.');return}d.days=d.days.filter(x=>x.id!==el.dataset.day)},
+  'day-up'(el){const d=curDraft(),i=d.days.findIndex(x=>x.id===el.dataset.day);move(d.days,i,i-1)},
+  'day-down'(el){const d=curDraft(),i=d.days.findIndex(x=>x.id===el.dataset.day);move(d.days,i,i+1)},
+  'row-up'(el){const day=findDay(el.dataset.day),i=day.exercises.findIndex(r=>r.id===el.dataset.row);move(day.exercises,i,i-1)},
+  'row-down'(el){const day=findDay(el.dataset.day),i=day.exercises.findIndex(r=>r.id===el.dataset.row);move(day.exercises,i,i+1)},
+  'row-del'(el){const day=findDay(el.dataset.day);day.exercises=day.exercises.filter(r=>r.id!==el.dataset.row)},
+  'add-ex'(el){const day=findDay(el.dataset.day),c=client(ui.clientId)||TPL_CLIENT,h=exHistory(c,el.dataset.ex),last=h[h.length-1];day.exercises.push({id:uid(),exId:el.dataset.ex,sets:3,reps:'10',rest:pref(coach(ui.user.id),'defaultRest'),weight:last&&last.top!=null?last.top:"",prog:{type:"none",step:2.5,every:1},note:""});ui.focus='s-'+day.id},
+  'add-new-ex'(el){const name=el.dataset.name.trim(),e={id:'u'+uid(),name,group:'Yours',pattern:'curl',noAnim:true,load:null,custom:true,coachId:ui.user.id};S.exercises.push(e);save();const day=findDay(el.dataset.day);day.exercises.push({id:uid(),exId:e.id,sets:3,reps:'10',rest:pref(coach(ui.user.id),'defaultRest'),weight:"",prog:{type:"none",step:2.5,every:1},note:""});ui.focus="s-"+day.id;toast(`Added “${name}”. Tap its name to add your own video.`)},
+  'save-plan'(){const c=client(ui.clientId),d=curDraft();if(!d.startDate){toast('Pick a start date first.');return}
+    // only ask "this week or next week?" once a routine is actually running
+    const running=c.plan&&(!(c.plan.activeFrom>today())||(c.planHistory||[]).length);
+    if(running)return ACT['save-plan-when']({dataset:{v:ui.saveWhen||'this'}});
+    const updating=!!c.plan,{isNew,...plan}=clone(d);plan.id=uid();plan.days.forEach(x=>{delete x._ex;delete x._name});plan.activeFrom=mondayOf(plan.startDate);c.plan=plan;
+    notify(c,updating?`${first(coach(c.coachId).name)} changed your routine. It starts ${fmtDate(plan.activeFrom)}.`:`${first(coach(c.coachId).name)} set up your new routine: ${plan.name}. It starts ${fmtDate(plan.activeFrom)}.`);
+    delete ui.drafts[c.id];ui.saveWhen=null;save();scrollTo(0,0);toast(`Routine saved. It starts ${fmtDate(plan.activeFrom)}.`)},
+  'routine-when'(el){ui.saveWhen=el.dataset.v},
+  'save-plan-when'(el){const c=client(ui.clientId),d=curDraft(),mon=mondayOf(today()),from=el.dataset.v==='next'?addDays(mon,7):mon;
+    c.planHistory=c.planHistory||[];
+    const old=c.plan,oldFrom=old.activeFrom||mondayOf(old.startDate);
+    if(oldFrom<from)c.planHistory.push({from:oldFrom,until:addDays(from,-1),plan:clone(old)});
+    c.planHistory=c.planHistory.map(h=>h.until>=from?{...h,until:addDays(from,-1)}:h).filter(h=>h.from<=h.until);
+    const{isNew,...plan}=clone(d);plan.id=uid();plan.days.forEach(x=>{delete x._ex;delete x._name});plan.startDate=old.startDate;plan.activeFrom=from;plan.days.forEach(x=>x.exercises.forEach(r=>{if(progOf(r).type==='weekly'&&!r.since)r.since=from}));c.plan=plan;
+    const wn=weekName(c,from),cn=first(coach(c.coachId).name);
+    notify(c,el.dataset.v==='next'?`${cn} set your new routine. It starts ${fmtDate(from)}.`:`${cn} changed your routine for this week.`);
+    ui.saveWhen=null;delete ui.drafts[c.id];save();
+    scrollTo(0,0);toast(el.dataset.v==='next'?`Routine saved. It starts ${fmtDate(from)}${wn?` (${wn})`:''}.`:`Routine saved for this week${wn?` (${wn})`:''}.`)},
+  'plan-from-history'(el){const c=client(ui.clientId),h=c.planHistory[+el.dataset.i];ui.drafts[c.id]={isNew:false,name:h.plan.name,startDate:c.plan.startDate,days:freshIds(h.plan.days)};ui.openDay=null;scrollTo(0,0);toast(`Loaded “${h.plan.name}”. Change it, then save it for this week or next.`)},
+  'save-template'(){const d=curDraft();S.templates.push({id:uid(),coachId:ui.user.id,name:d.name,days:toWeek(freshIds(d.days))});save();toast(`Saved “${d.name}” as a template. Find it in the Templates tab.`)},
+  // templates tab
+  'tpl-new'(){const k=tplKey();ui.drafts[k]={isNew:true,tplId:null,name:'',desc:'',days:WK.map((_,i)=>newDay('',![0,2,4].includes(i)))};ui.clientId=k;ui.openDay=null;ui.tplUse=null;ui.tplDel=null;ui.focus='tpl-name';scrollTo(0,0)},
+  'tpl-edit'(el){const t=S.templates.find(x=>x.id===el.dataset.id),k=tplKey(t.id);ui.drafts[k]={isNew:true,tplId:t.id,name:t.name,desc:t.desc||'',days:toWeek(clone(t.days))};ui.clientId=k;ui.openDay=null;scrollTo(0,0)},
+  'tpl-dup'(el){const t=S.templates.find(x=>x.id===el.dataset.id),cp={id:uid(),coachId:t.coachId,name:t.name+' (copy)',desc:t.desc||'',days:toWeek(freshIds(t.days))};S.templates.splice(S.templates.indexOf(t)+1,0,cp);ui.tplOpen=cp.id;save();toast(`Made a copy: “${cp.name}”. Tap Edit to change it.`)},
+  'tpl-del-ask'(el){ui.tplDel=el.dataset.id||null;ui.tplUse=null},
+  'tpl-del'(el){S.templates=S.templates.filter(t=>t.id!==el.dataset.id);ui.tplDel=null;save();toast('Template deleted.')},
+  'tpl-open'(el){ui.tplOpen=ui.tplOpen===el.dataset.id?null:el.dataset.id;ui.tplUse=null;ui.tplDel=null},
+  'tpl-use'(el){ui.tplUse=el.dataset.id||null;ui.tplDel=null},
+  'tpl-apply'(el){const t=S.templates.find(x=>x.id===el.dataset.id),c=client(el.dataset.client);ui.drafts[c.id]={isNew:true,name:t.name,startDate:nextMonday(),days:toWeek(freshIds(t.days))};ui.tplUse=null;ui.view='client';ui.clientId=c.id;ui.tab='workouts';ui.openDay=null;scrollTo(0,0);toast(`Loaded “${t.name}” for ${c.name}. Set their weights, then save.`)},
+  'tpl-cancel'(){delete ui.drafts[ui.clientId];ui.clientId=null;ui.view='templates'},
+  'tpl-save'(){const k=ui.clientId,d=ui.drafts[k];if(!d)return;const name=(d.name||'').trim();if(!name){toast('Give the template a name first.');ui.focus='tpl-name';return}
+    const days=toWeek(clone(d.days));days.forEach(x=>{delete x._ex;delete x._name});
+    if(d.tplId){const t=S.templates.find(x=>x.id===d.tplId);Object.assign(t,{name,desc:(d.desc||'').trim(),days})}else S.templates.push({id:uid(),coachId:ui.user.id,name,desc:(d.desc||'').trim(),days});
+    delete ui.drafts[k];ui.clientId=null;save();toast(d.tplId?`Template “${name}” updated. Clients already using it keep their routine.`:`Template “${name}” created.`)},
+  'del-template-old'(el){S.templates=S.templates.filter(t=>t.id!==el.dataset.id);save();toast('Template deleted.')},
+  'ol-ex'(el){ui.olEx=el.dataset.id;scrollTo(0,0)},
+  'ol-back'(){ui.olEx=null},
+  'rep-range'(el){ui.repRange=+el.dataset.v},
+  'rep-tab'(el){ui.repTab=el.dataset.v},
+  'str-all'(){ui.strAll=!ui.strAll},
+  'lifts-all'(){ui.liftsAll=!ui.liftsAll},
+  'rep-week'(el){ui.repTab='history';ui.cal={month:monthOf(el.dataset.v),day:null,week:el.dataset.v};scrollTo(0,0)},
+  'cal-month'(el){ui.cal.month=shiftMonth(ui.cal.month,+el.dataset.v);ui.cal.day=null;ui.cal.week=null},
+  'cal-day'(el){ui.cal.day=el.dataset.v;ui.cal.week=null;ui.cal.month=monthOf(el.dataset.v)},
+  'cal-week'(el){ui.cal.week=ui.cal.week===el.dataset.v?null:el.dataset.v;ui.cal.day=null},
+  // meals
+  'meal-day'(el){ui.mealDay=+el.dataset.v},
+  'cmeal-day'(el){ui.cMealDay=+el.dataset.v},
+  'new-meals'(){const blank={kcal:'',protein:'',meals:['Breakfast','Lunch','Snack','Dinner'].map(n=>({id:uid(),name:n,foods:[blankFood()]}))};ui.mealDrafts[ui.clientId]={isNew:true,days:Array.from({length:7},()=>freshMeals(blank))};ui.mealDay=0},
+  'copy-meals'(el){const o=client(el.dataset.id);ui.mealDrafts[ui.clientId]={isNew:true,days:o.meals.days.map(freshMeals)}},
+  'edit-meals'(){ui.mealDrafts[ui.clientId]={...clone(client(ui.clientId).meals),isNew:false}},
+  'discard-meals'(){delete ui.mealDrafts[ui.clientId]},
+  'clear-meal-day'(){const d=mealDraftDay();d.meals=[];d.kcal='';d.protein=''},
+  'copy-meal-to'(el){const c=client(ui.clientId),d=ui.mealDrafts[c.id],sel=ui.mealDay??weekIdx(today()),types=weekTypes(c),v=el.dataset.v;
+    const targets=[0,1,2,3,4,5,6].filter(i=>i!==sel&&(v==='all'||(v==='weekdays'&&i<5)||(v==='weekend'&&i>4)||types[i]===v));
+    targets.forEach(i=>d.days[i]=freshMeals(d.days[sel]));toast(targets.length?`Copied ${WKL[sel]} to ${targets.map(i=>WK[i]).join(', ')}.`:'No other days match.')},
+  'add-meal'(){const m={id:uid(),name:'Meal',foods:[blankFood()]};mealDraftDay().meals.push(m);ui.focus='mn-'+m.id},
+  'del-meal'(el){const d=mealDraftDay();d.meals=d.meals.filter(m=>m.id!==el.dataset.meal)},
+  'add-food'(el){const f=blankFood();mealDraftDay().meals.find(x=>x.id===el.dataset.meal).foods.push(f);ui.focus='ff-'+f.id},
+  'del-food'(el){const m=mealDraftDay().meals.find(x=>x.id===el.dataset.meal);m.foods=m.foods.filter(f=>f.id!==el.dataset.food)},
+  'save-meals'(){const c=client(ui.clientId),{isNew,...m}=clone(ui.mealDrafts[c.id]);m.since=isNew?today():(c.meals&&c.meals.since)||today();m.days.forEach(d=>{d.kcal=+d.kcal||0;d.protein=+d.protein||0;d.meals.forEach(x=>{x.foods=x.foods.filter(f=>f.food.trim());x.foods.forEach(f=>{f.kcal=+f.kcal||0;f.protein=+f.protein||0})})});c.meals=m;notify(c,`${first(coach(c.coachId).name)} ${isNew?'set up':'edited'} your meal plan.`,'meals');delete ui.mealDrafts[c.id];save();toast(`Meal plan saved. ${first(c.name)} has been notified.`)},
+  // library
+  'lib-group'(el){ui.libGroup=el.dataset.v},
+  'preview-ex'(el){ui.preview=el.dataset.id;renderSheet();return'skip'},
+  'close-sheet'(){closeSheets();return'skip'},
+  'clear-video'(el){const e=exById(el.dataset.id);delete e.video;save();renderSheet();toast('Back to the built-in animation.');return'skip'},
+  'del-ex'(el){if(S.clients.some(c=>c.plan&&c.plan.days.some(d=>d.exercises.some(r=>r.exId===el.dataset.id)))){toast("This exercise is in a client's plan. Remove it from the plan first.");return'skip'}S.exercises=S.exercises.filter(e=>e.id!==el.dataset.id);ui.preview=null;save();toast('Exercise deleted.')},
+  // onboarding + invites
+  'ob-next'(){if((ui.obStep||1)===1&&!(ui.ob&&ui.ob.name.trim()))return'skip';ui.obStep=(ui.obStep||1)+1;scrollTo(0,0)},
+  'ob-back'(){ui.obStep=Math.max(1,(ui.obStep||1)-1)},
+  'ob-finish'(el){const co=coach(ui.user.id),d=ui.ob;
+    if(!el.dataset.skip&&!d.cname.trim()){toast("Add your client's name, or tap Skip for now.");return'skip'}
+    co.name=d.name.trim()||co.name;co.business=d.business.trim();co.logo=d.logo||null;co.onboarded=true;
+    if(!el.dataset.skip){const c=newClient({coachId:co.id,name:d.cname.trim(),goal:d.cgoal.trim(),status:'invited',inviteCode:newCode(),invitedAt:today()});S.clients.push(c);ui.invOpen=c.id}
+    ui.ob=null;ui.obStep=1;ui.view=el.dataset.skip?'clients':'invites';save();toast(`You're all set, ${first(co.name)}.`)},
+  'inv-open'(el){ui.invOpen=ui.invOpen===el.dataset.id?null:el.dataset.id;ui.confirm=null},
+  'inv-go'(el){ui.view='invites';ui.invOpen=el.dataset.id;scrollTo(0,0)},
+  'inv-ask-cancel'(el){ui.confirm={id:el.dataset.id,kind:'cancelinv'}},
+  'inv-cancel'(el){const c=client(el.dataset.id);S.clients=S.clients.filter(x=>x.id!==c.id);ui.confirm=null;ui.invOpen=null;save();toast(`Invite for ${c.name} cancelled.`)},
+  'copy-invite'(el){const c=client(el.dataset.id),txt=el.dataset.msg?inviteMsg(c,coach(c.coachId)):inviteLink(c);
+    const fallback=()=>{const s=$('#link-'+c.id);if(s){const r=document.createRange();r.selectNodeContents(s);const sel=getSelection();sel.removeAllRanges();sel.addRange(r)}toast('Copying is blocked here. The link is selected, so copy it yourself.')};
+    try{navigator.clipboard.writeText(txt).then(()=>toast(el.dataset.msg?'Message copied. Paste it into WhatsApp or a text.':'Link copied.'),fallback)}catch(x){fallback()}return'skip'},
+  'new-invite'(el){const c=client(el.dataset.id);c.inviteCode=newCode();c.invitedAt=today();save();toast('New link made. The old link no longer works.')},
+  // reminders, swaps, measurements, summary
+  'rem-open'(){ui.remSheet=true;renderSheet();return'skip'},
+  'swap-open'(el){ui.swapRow=el.dataset.row;renderSheet();return'skip'},
+  'do-swap'(el){const c=client(ui.user.id),T=today(),r=dayAt(c,T).day.exercises.find(x=>x.id===el.dataset.row);
+    c.swaps=c.swaps||{};c.swaps[T]=c.swaps[T]||{};c.swaps[T][r.id]=el.dataset.ex;if(c.session&&c.session.sets)delete c.session.sets[r.id];
+    c.swapFeed=(c.swapFeed||[]).filter(x=>!(x.date===T&&x.rowId===r.id));c.swapFeed.push({id:uid(),date:T,rowId:r.id,from:r.exId,to:el.dataset.ex,ts:Date.now(),synced:S.online});
+    ui.swapRow=null;save();toast(`Swapped to ${exById(el.dataset.ex).name} for today. ${first(coach(c.coachId).name)} will see it.`)},
+  'undo-swap'(el){const c=client(ui.user.id),T=today();if(c.swaps&&c.swaps[T])delete c.swaps[T][el.dataset.row];if(c.session&&c.session.sets)delete c.session.sets[el.dataset.row];
+    c.swapFeed=(c.swapFeed||[]).filter(x=>!(x.date===T&&x.rowId===el.dataset.row));ui.swapRow=null;save();toast('Back to the original exercise.')},
+  'notif-open'(){const o=notifOwner();ui.notifPrev=o.notifRead||0;o.notifRead=Date.now();save();ui.notifSheet=true;render();return'skip'},
+  'notif-go'(el){const x=notifications()[+el.dataset.i];ui.notifSheet=false;if(ui.user.role==='client')ui.view=x.go;else{ui.view='client';ui.clientId=x.id;ui.tab=x.tab;ui.olEx=null}scrollTo(0,0)},
+  'settings-open'(){if(ui.view!=='settings')ui.setBack=ui.view;ui.view='settings';scrollTo(0,0)},
+  'settings-back'(){ui.view=ui.setBack||(ui.user.role==='coach'?'clients':'today');scrollTo(0,0)},
+  'theme-open'(){ui.themeSheet=true;renderSheet();return'skip'},
+  'theme-set'(el){setTheme(el.dataset.v);renderSheet();return'skip'},
+  'meas-pick'(el){ui.measure=el.dataset.v},
+  'join-seen'(el){client(el.dataset.id).joinSeen=true;save()},
+  'edit-name'(el){ui.editName=el.dataset.id},
+  'cancel-edit'(){ui.editName=null},
+  'edit-myname'(){ui.nameSheet=true;renderSheet();return'skip'},
+  'toggle-meas'(){ui.showMeas=!ui.showMeas},
+  'sum-week'(el){ui.sumWeek=el.dataset.v},
+  'sum-open'(el){ui.sumOpen=ui.sumOpen===el.dataset.id?null:el.dataset.id},
+  // client
+  'dismiss-note'(el){const c=client(ui.user.id);c.notes=c.notes.filter(n=>n.id!==el.dataset.id);save()},
+  'ready-set'(el){ui.ready={...(ui.ready||{}),[el.dataset.k]:+el.dataset.v}},
+  'ready-save'(){const c=client(ui.user.id);c.readiness[today()]={...ui.ready,synced:S.online};ui.ready=null;save()},
+  'open-ex'(el){ui.view='exercise';ui.rowId=el.dataset.row;scrollTo(0,0)},
+  'set-done'(el){const c=client(ui.user.id),inf=dayAt(c,today()),r=inf.day.exercises.find(x=>x.id===el.dataset.row),s=getSets(c,r)[+el.dataset.i];s.done=!s.done;if(s.done&&!c.session.startedAt)c.session.startedAt=Date.now();save();
+    if(s.done){const all=inf.day.exercises.every(x=>{const ss=getSets(c,x,false);return ss&&ss.every(y=>y.done)});if(all){stopTimer();toast('All sets done. Head back and tap Finish workout.')}else if(pref(c,'autoTimer'))startTimer(+r.rest+restBonus(c),`${exById(effRow(c,r).exId).name}, set ${+el.dataset.i+1} done`)}},
+  'finish-open'(){ui.finishing={rpe:null};renderSheet();return'skip'},
+  rpe(el){ui.finishing.rpe=+el.dataset.v;renderSheet();return'skip'},
+  finish(){const c=client(ui.user.id),inf=dayAt(c,today()),f=finishSummary(c),T=today();
+    c.logs.push({id:uid(),date:T,dayId:inf.day.id,dayName:dayLabel(weekIdx(T),inf.day),entries:f.entries,rpe:ui.finishing.rpe,durationMin:f.mins||1,prs:f.prs,note:(ui.finishing.note||'').trim(),finishedAt:Date.now(),synced:S.online});
+    // "when reps are hit": every set at or above its target weight and at the top of the rep range
+    const ups=[];
+    for(const r of inf.day.exercises){const e=f.entries.find(x=>x.rowId===r.id),p=progOf(r);if(!e||p.type!=='earned'||!hasW(r.weight))continue;const top=topReps(r.reps);
+      if(e.sets.length>=r.sets&&e.sets.every((s,i)=>hasW(s.w)&&+s.w>=setWeight(r,i,T,c.plan)&&(+s.r||0)>=(top||0))){const from=+r.weight;r.weight=+(from+(+p.step||0)).toFixed(2);c.progressions.push({date:T,exId:r.exId,from,to:r.weight,synced:S.online});ups.push(`${exById(r.exId).name} → ${kg(r.weight)} kg`)}}
+    c.session=null;ui.finishing=null;stopTimer();save();
+    if(f.prs.length)confetti();
+    const cn=first(coach(c.coachId).name);
+    toast((ups.length?`Next time: ${ups.join(', ')}. `:'')+(S.online?`Saved. ${cn} can see it now.`:`Saved on this phone. ${cn} sees it when you're back online.`))},
+  'timer-add'(){if(timer){timer.end+=15000;timer.total+=15}tickTimer();return'skip'},
+  'timer-skip'(){stopTimer();return'skip'},
+  'tick-meal'(el){const c=client(ui.user.id),T=today();c.mealTicks[T]=c.mealTicks[T]||{};if(c.mealTicks[T][el.dataset.meal])delete c.mealTicks[T][el.dataset.meal];else c.mealTicks[T][el.dataset.meal]={synced:S.online};save()},
+  // demo bar
+  online(el){const on=el.dataset.v==='1';if(on===S.online)return'skip';S.online=on;if(on){const n=syncAll();toast(n?`Back online. Synced ${n} change${n>1?'s':''}.`:'Back online.')}else toast("Client's phone is offline. Logging still works.");save()},
+  reset(){try{localStorage.removeItem(KEY)}catch(e){}S=seed();Object.assign(ui,{drafts:{},mealDrafts:{},chooser:null,preview:null,confirm:null,olEx:null,finishing:null,ready:null,swapRow:null,remSheet:false,invite:null,ob:null,obStep:1,join:null});stopTimer();if(!(ui.user.role==='coach'?coach(ui.user.id):client(ui.user.id)))ui.user={role:'coach',id:'co1'};ui.view=ui.user.role==='coach'?'clients':'today';save();toast('Sample data reset.')},
+};
+document.addEventListener('click',e=>{
+  if(e.target.id==='sheet'){closeSheets();return}
+  const el=e.target.closest('[data-act]');if(!el)return;
+  const fn=ACT[el.dataset.act];if(!fn)return;e.preventDefault();
+  if(fn(el,e)!=='skip')render();
+});
+document.addEventListener('input',e=>{
+  const t=e.target,ds=t.dataset;
+  if(ds.pf){curDraft()[ds.pf]=t.value;const h=$('#cycle-hint');if(h)h.textContent=cycleHint(curDraft());return}
+  if(ds.df){findDay(ds.day)[ds.df]=t.value;return}
+  if(ds.rf){const r=findDay(ds.day).exercises.find(x=>x.id===ds.row),f=ds.rf;
+    if(f==='sets'||f==='rest')r[f]=Math.max(f==='sets'?1:0,parseInt(t.value)||0);
+    else if(f==='weight')r.weight=t.value.trim()===''?'':+String(t.value).replace(',','.')||'';
+    else r[f]=t.value;
+    if(f==='weight'&&progOf(r).type==='weekly'&&!curDraft().isNew)r.since=mondayOf(today());
+    const pp=$('#pp-'+r.id);if(pp){pp.textContent=progSentence(r,curDraft());pp.hidden=!pp.textContent}return}
+  if(ds.pg){const r=findDay(ds.day).exercises.find(x=>x.id===ds.row),v=+String(t.value).replace(',','.').replace('−','-');
+    if(!isNaN(v)){r.prog={...progOf(r),[ds.pg]:ds.pg==='every'?Math.max(1,Math.round(v)||1):v};if(ds.pg==='step'&&progOf(r).type==='weekly'&&!curDraft().isNew)r.since=mondayOf(today())}
+    const pp=$('#pp-'+r.id);if(pp){pp.textContent=progSentence(r,curDraft());pp.hidden=!pp.textContent}return}
+  if(ds.ob){ui.ob[ds.ob]=t.value;const b=$('#ob-go1');if(b)b.disabled=!ui.ob.name.trim();return}
+  if(ds.xnote){const c=client(ui.user.id);if(c.session){c.session.notes=c.session.notes||{};c.session.notes[ds.xnote]=t.value;save()}return}
+  if(ds.fnote!==undefined){if(ui.finishing)ui.finishing.note=t.value;return}
+  if(ds.rem==='time'){const c=client(ui.user.id);c.reminder={...(c.reminder||{on:true}),time:t.value||'07:00'};save();return}
+  if(ds.search){$('#r-'+ds.search).innerHTML=searchResults(ds.search,t.value);return}
+  if(ds.libsearch!==undefined){ui.libQ=t.value;$('#lib-list').innerHTML=libItems();return}
+  const updTotals=()=>{const d=mealDraftDay(),tt=dayTotals(d),el=$('#meal-totals');if(el)el.innerHTML=bar(tt.kcal,+d.kcal,'Planned kcal')+bar(tt.protein,+d.protein,'Planned protein g')};
+  if(ds.mt){mealDraftDay()[ds.mt]=t.value;updTotals();return}
+  if(ds.mn){mealDraftDay().meals.find(m=>m.id===ds.mn).name=t.value;return}
+  if(ds.ff){mealDraftDay().meals.find(m=>m.id===ds.meal).foods.find(f=>f.id===ds.food)[ds.ff]=t.value;updTotals();return}
+  if(ds.sf){const c=client(ui.user.id),r=dayAt(c,today()).day.exercises.find(x=>x.id===ds.row);getSets(c,r)[+ds.i][ds.sf]=t.value;save();return}
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&e.target.dataset&&e.target.dataset.search){e.preventDefault();const b=$('#r-'+e.target.dataset.search+' button');if(b)b.click()}
+  if(e.key==='Escape'&&(ui.preview||ui.finishing||ui.swapRow||ui.remSheet||ui.nameSheet||ui.themeSheet||ui.notifSheet))closeSheets();
+});
+function readVideo(file,done){
+  if(file.size>3*1024*1024){toast('That video is over 3 MB. Trim it to a few seconds so it loads fast and works offline.');return}
+  const rd=new FileReader();rd.onload=()=>done(rd.result);rd.readAsDataURL(file);
+}
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.id==='who'){const[role,id]=t.value.split(':');ui.user={role,id};ui.view=role==='coach'?'clients':'today';Object.assign(ui,{chooser:null,preview:null,olEx:null,finishing:null,confirm:null,cMealDay:null,swapRow:null,remSheet:false,themeSheet:false,notifSheet:false,invite:null,ob:null,obStep:1,join:null,repClient:null});stopTimer();render();scrollTo(0,0);return}
+  if(t.dataset.pref){const o=notifOwner();o.prefs=o.prefs||{};o.prefs[t.dataset.pref]=t.type==='checkbox'?t.checked:+t.value;save();return}
+  if(t.dataset.setlogo!==undefined&&t.files[0]){shrinkImage(t.files[0],200,src=>{coach(ui.user.id).logo=src;save();render();toast('Logo saved.')});return}
+  if(t.dataset.pf==='startDate'){render();return}
+  if(t.dataset.rem==='on'){const c=client(ui.user.id);c.reminder={...(c.reminder||{time:'07:00'}),on:t.checked};save();renderSheet();toast(t.checked?'Reminders on.':'Reminders off.');return}
+  if(t.dataset.rem==='time'){renderSheet();return}
+  if(t.dataset.oblogo!==undefined&&t.files[0]){shrinkImage(t.files[0],200,src=>{ui.ob.logo=src;render()});return}
+  if(t.dataset.rf==="weight"){const dis=t.closest(".exrow").querySelector(".segp button[disabled]");if(!!dis===(t.value.trim()!==""))render();return}
+  if(t.dataset.vid&&t.files[0]){readVideo(t.files[0],src=>{exById(t.dataset.vid).video=src;save();renderSheet();toast('Video saved. Clients see it instead of the animation.')});return}
+  if(t.dataset.photo&&t.files[0]){
+    const c=client(ui.user.id),angle=t.dataset.photo,img=new Image();
+    img.onload=()=>{const W=360,H=Math.round(img.height*W/img.width),cv=document.createElement('canvas');cv.width=W;cv.height=H;cv.getContext('2d').drawImage(img,0,0,W,H);
+      const src=cv.toDataURL('image/jpeg',.72);URL.revokeObjectURL(img.src);c.photos=c.photos.filter(p=>!(p.date===today()&&p.angle===angle));c.photos.push({id:uid(),date:today(),angle,src,synced:S.online});save();render();toast(`${angle[0].toUpperCase()+angle.slice(1)} photo saved.`)};
+    img.onerror=()=>toast("That file couldn't be read as a photo. Try a JPG or PNG.");
+    img.src=URL.createObjectURL(t.files[0]);
+  }
+});
+document.addEventListener('submit',e=>{
+  const f=e.target,k=f.dataset.form;if(!k)return;e.preventDefault();const fd=new FormData(f);
+  if(k==='add-client'){const name=fd.get('name').trim();if(!name)return;const c=newClient({coachId:ui.user.id,name,goal:fd.get('goal').trim(),status:'invited',inviteCode:newCode(),invitedAt:today()});S.clients.push(c);ui.invOpen=c.id;ui.view='invites';save();render();scrollTo(0,0);toast(`Invite ready for ${c.name}. Send them the link.`);return}
+  if(k==='coach-profile'){const o=coach(ui.user.id),n=String(fd.get('name')||'').trim();if(!n){toast('Enter your name.');return}o.name=n;o.business=String(fd.get('business')||'').trim();save();render();toast('Profile saved.');return}
+  if(k==='edit-client'){const c=client(ui.clientId),n=String(fd.get('name')||'').trim();if(!n){toast('Enter a name.');return}c.name=n;c.goal=String(fd.get('goal')||'').trim();ui.editName=null;save();render();toast('Client details saved.');return}
+  if(k==='my-name'){const c=client(ui.user.id),n=String(fd.get('name')||'').trim();if(!n){toast('Enter a name.');return}c.selfName=n;ui.nameSheet=false;save();render();toast(`Got it, ${first(n)}.`);return}
+  if(k==='join'){const c=client(ui.user.id);if(String(fd.get('pw')).length<8){toast('Use at least 8 characters for your password.');return}const nm=String(fd.get('name')||'').trim();c.invitedAs=c.name;if(nm){c.name=nm;c.selfName=nm}c.status='active';c.joinedTs=Date.now();c.joinSeen=false;c.joinedAt=today();ui.join=null;c.notes.unshift({id:uid(),text:`Welcome! You're now connected to ${coach(c.coachId).name}. Your plan shows here as soon as it's ready.`,ts:Date.now()});save();render();toast('Welcome to Spotter.');return}
+  if(k==='send'){const text=fd.get('text').trim();if(!text)return;const role=ui.user.role,c=role==='coach'?client(ui.clientId):client(ui.user.id);c.messages.push({from:role,text,ts:Date.now(),synced:role==='coach'?true:S.online});if(role==='coach')c.coachRead=Date.now();save();ui.focus='msg-input';render();return}
+  if(k==='weight'){const mm={};MEAS.forEach(([m])=>{const v=parseFloat(String(fd.get('m_'+m)||'').replace(',','.'));if(v>10&&v<300)mm[m]=Math.round(v*10)/10});
+    if(Object.keys(mm).length){const c0=client(ui.user.id),dt=fd.get('date')||today();c0.measures=(c0.measures||[]).filter(x=>x.date!==dt);c0.measures.push({id:uid(),date:dt,...mm,synced:S.online})}
+    const v=parseFloat(String(fd.get('kg')).replace(',','.'));if(!(v>20&&v<400)){toast('Enter your weight in kilograms, for example 78.4.');return}const c=client(ui.user.id),date=fd.get('date')||today();c.weights=c.weights.filter(w=>w.date!==date);c.weights.push({id:uid(),date,kg:Math.round(v*10)/10,synced:S.online});save();render();toast('Weigh-in saved.');return}
+  if(k==='add-ex'){const like=exById(fd.get('like')),name=fd.get('name').trim(),file=fd.get('video');
+    const done=video=>{S.exercises.push({id:'u'+uid(),name,group:fd.get('group'),pattern:like.pattern,load:like.load,custom:true,coachId:ui.user.id,video:video||undefined});save();ui.libGroup='Yours';ui.libQ='';render();toast(`Added “${name}”.`)};
+    if(file&&file.size)readVideo(file,done);else done(null)}
+});
+/* drag to reorder exercises within a day (handle only) */
+let drag=null;
+document.addEventListener('pointerdown',e=>{const g=e.target.closest('.grip');if(g)g.closest('.exrow').draggable=true});
+document.addEventListener('dragstart',e=>{const li=e.target.closest&&e.target.closest('.exrow');if(!li)return;drag={day:li.dataset.day,row:li.dataset.row};li.classList.add('dragging');e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain',li.dataset.row)}catch(x){}});
+document.addEventListener('dragover',e=>{const li=e.target.closest&&e.target.closest('.exrow');if(!drag||!li||li.dataset.day!==drag.day)return;e.preventDefault();document.querySelectorAll('.exrow.drop').forEach(x=>x!==li&&x.classList.remove('drop'));li.classList.add('drop')});
+document.addEventListener('drop',e=>{const li=e.target.closest&&e.target.closest('.exrow');if(!drag||!li||li.dataset.day!==drag.day)return;e.preventDefault();const day=findDay(drag.day);move(day.exercises,day.exercises.findIndex(r=>r.id===drag.row),day.exercises.findIndex(r=>r.id===li.dataset.row));drag=null;render()});
+document.addEventListener('dragend',()=>{drag=null;document.querySelectorAll('.exrow').forEach(x=>{x.draggable=false;x.classList.remove('dragging','drop')})});
+
+render();
+SpotterAnim.start();
