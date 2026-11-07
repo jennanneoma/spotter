@@ -18,12 +18,12 @@ function calendarView(c){
     const wn=progWeek(c,mon);
     const cells=Array.from({length:7},(_,i)=>{const d=addDays(mon,i);if(monthOf(d)!==cal.month)return'<span class="calcell blank"></span>';
       const s=dayStatus(c,d),mark=s.key==='done'?'✓':s.key==='notlogged'?'✕':s.key==='today'||s.key==='planned'?'•':'';
-      return `<button class="calcell ${s.key} ${d===T?'istoday':''} ${d===cal.day?'sel':''}" data-act="cal-day" data-v="${d}" aria-label="${fmtDate(d)}: ${CAL_LABEL[s.key]}" aria-pressed="${d===cal.day}"><b>${+d.slice(8)}</b><i aria-hidden="true">${mark}</i></button>`}).join('');
+      return `<button class="calcell ${s.key} ${d===T?'istoday':''} ${d===cal.day?'sel':''} ${s.inf.edited?'edited':''}" data-act="cal-day" data-v="${d}" aria-label="${fmtDate(d)}: ${CAL_LABEL[s.key]}" aria-pressed="${d===cal.day}"><b>${+d.slice(8)}</b><i aria-hidden="true">${mark}</i></button>`}).join('');
     rows.push(`<div class="calrow">${wn>=1?`<button class="calwk ${cal.week===mon?'sel':''}" data-act="cal-week" data-v="${mon}" aria-label="Week ${wn} summary">${wn}</button>`:'<span class="calwk blank"></span>'}${cells}</div>`);
   }
   return `<div class="calcard"><div class="calhead"><button class="icon-btn" data-act="cal-month" data-v="-1" aria-label="Previous month" ${cal.month<=minM?'disabled':''}>‹</button><h3>${MONTHS[m-1]} ${y}</h3><button class="icon-btn" data-act="cal-month" data-v="1" aria-label="Next month" ${cal.month>=maxM?'disabled':''}>›</button></div>
     <div class="calrow caldow"><span>WK</span>${WK.map(w=>`<span>${w.slice(0,1)}</span>`).join('')}</div>${rows.join('')}
-    <div class="callegend"><span><i class="ok">✓</i>Done</span><span><i class="bad">✕</i>Not logged</span><span><i>•</i>Planned</span><span>Tap a week number for its summary</span></div></div>
+    <div class="callegend"><span><i class="ok">✓</i>Done</span><span><i class="bad">✕</i>Not logged</span><span><i>•</i>Planned</span>${Object.keys(c.dayEdits||{}).some(d=>monthOf(d)===cal.month)?'<span><i class="ed"></i>Changed day</span>':''}<span>Tap a week number for its summary</span></div></div>
   ${cal.week?calWeekPanel(c,cal.week):cal.day?calDayPanel(c,cal.day):'<p class="hint">Tap a day to see what happened.</p>'}`;
 }
 function calWeekPanel(c,mon){
@@ -56,7 +56,9 @@ function calDayPanel(c,d){
   const wg=visW(c).find(x=>x.date===d);if(wg)extra.push(['Body weight',`${kg(wg.kg)} kg`]);
   const ms=(c.measures||[]).find(x=>x.date===d&&x.synced!==false);if(ms)extra.push(['Measurements',MEAS.filter(([k])=>hasW(ms[k])).map(([k,l])=>`${l} ${kg(ms[k])} cm`).join(' · ')]);
   const ph=c.photos.filter(p=>p.date===d&&p.synced!==false);
-  return `<section class="card hud calpanel"><div><p class="eyebrow">${fmtDate(d)}${wn?` · ${wn}`:''}</p><h2>${esc(title)}</h2>${msg?`<p class="hint">${msg}</p>`:''}</div>${body}
+  const canEdit=d>=today()&&s.key!=='done'&&!!day&&ui.user.role==='coach';
+  const edit=canEdit?`<div class="calchange">${s.inf.edited?'<p class="hint">Changed for this day only.</p>':''}<button class="btn sm" data-act="cal-change" data-id="${c.id}" data-v="${d}">${s.inf.edited?'Edit this day':'Change this day'}</button></div>`:'';
+  return `<section class="card hud calpanel"><div><p class="eyebrow">${fmtDate(d)}${wn?` · ${wn}`:''}</p><h2>${esc(title)}</h2>${msg?`<p class="hint">${msg}</p>`:''}</div>${body}${edit}
     ${extra.length?`<dl class="calextra">${extra.map(([a,b])=>`<div><dt>${a}</dt><dd>${esc(b)}</dd></div>`).join('')}</dl>`:''}
     ${ph.length?photosHistory(ph):''}</section>`;
 }

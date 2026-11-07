@@ -1,7 +1,7 @@
 /* Spotter: state, rendering, actions */
-const KEY='spotter-demo-v13';
+const KEY='spotter-demo-v14';
 try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
-if(!S||S.v!==13||S.seededOn!==today())S=seed();
+if(!S||S.v!==14||S.seededOn!==today())S=seed();
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("This browser couldn't keep your changes. They last until you close the page.")}}
 
 function renderDemo(){
@@ -15,6 +15,7 @@ function render(){
   applyTheme();
   renderDemo();
   $('#app').innerHTML=ui.user.role==='coach'?coachApp():clientApp();
+  hydrateVideos();
   const m=$('#msgs');if(m)m.scrollTop=m.scrollHeight;
   if(ui.focus){const el=document.getElementById(ui.focus);if(el)el.focus();ui.focus=null}
   renderSheet();
@@ -22,6 +23,8 @@ function render(){
 function renderSheet(){
   const sh=$('#sheet');
   if(ui.themeSheet){sh.innerHTML=themeSheet();return}
+  if(ui.installSheet){sh.innerHTML=installSheet();return}
+  if(ui.mealX&&ui.user.role==='client'){sh.innerHTML=mxSheet(client(ui.user.id));return}
   if(ui.notifSheet){sh.innerHTML=notifSheet();return}
   if(ui.finishing&&ui.user.role==='client'){sh.innerHTML=finishSheet(client(ui.user.id));return}
   if(ui.swapRow&&ui.user.role==='client'){sh.innerHTML=swapSheet(client(ui.user.id));return}
@@ -37,8 +40,8 @@ function renderSheet(){
 }
 /* low energy today: longer breaks so every rep can still be finished */
 function restBonus(c){const r=c.readiness[today()];if(!r||!pref(c,'extraRest'))return 0;const sc=readyScore(r);return sc<55?60:sc<75?30:0}
-function closeSheets(){ui.preview=null;ui.finishing=null;ui.swapRow=null;ui.remSheet=false;ui.nameSheet=false;ui.themeSheet=false;ui.notifSheet=false;render()}
-function newClient(o){return{id:uid(),logs:[],weights:[],photos:[],messages:[],notes:[],mealTicks:{},meals:null,plan:null,session:null,readiness:{},progressions:[],planHistory:[],swaps:{},swapFeed:[],measures:[],reminder:{on:false,time:'07:00'},coachRead:0,notesSeen:0,status:'active',...o}}
+function closeSheets(){ui.preview=null;ui.finishing=null;ui.swapRow=null;ui.remSheet=false;ui.nameSheet=false;ui.themeSheet=false;ui.notifSheet=false;ui.installSheet=false;ui.mealX=null;render()}
+function newClient(o){return{id:uid(),logs:[],weights:[],photos:[],messages:[],notes:[],mealTicks:{},meals:null,plan:null,session:null,readiness:{},progressions:[],planHistory:[],swaps:{},swapFeed:[],measures:[],checkins:[],formChecks:[],mealLog:{},dayEdits:{},reminder:{on:false,time:'07:00'},coachRead:0,notesSeen:0,status:'active',...o}}
 function shrinkImage(file,max,done){const img=new Image();img.onload=()=>{const k=Math.min(1,max/Math.max(img.width,img.height)),cv=document.createElement('canvas');cv.width=Math.round(img.width*k);cv.height=Math.round(img.height*k);cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);URL.revokeObjectURL(img.src);done(cv.toDataURL('image/png'))};img.onerror=()=>toast("That file couldn't be read as an image. Try a JPG or PNG.");img.src=URL.createObjectURL(file)}
 let toastT;
 function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,3400)}
@@ -70,7 +73,11 @@ function confetti(){
 
 /* actions */
 const curDraft=()=>ui.drafts[ui.clientId];
-const findDay=id=>curDraft().days.find(d=>d.id===id);
+const findDay=id=>{const dd=ui.dayDraft;if(dd&&dd.day.id===id)return dd.day;return curDraft().days.find(d=>d.id===id)};
+// a weekly routine draft, or the one-date edit (which has no draft of its own)
+const draftPlan=()=>curDraft()||(client(ui.clientId)||{}).plan;
+const draftIsNew=()=>!!(curDraft()||{}).isNew;
+const sinceMon=()=>ui.dayDraft?mondayOf(ui.dayDraft.date):mondayOf(today());
 const mealDraftDay=()=>ui.mealDrafts[ui.clientId].days[ui.mealDay??weekIdx(today())];
 function move(a,i,j){if(j<0||j>=a.length)return;const[x]=a.splice(i,1);a.splice(j,0,x)}
 function notify(c,text,go='today'){c.notes.unshift({id:uid(),text,go,ts:Date.now()})}
@@ -97,7 +104,7 @@ const ACT={
   'plan-template'(el){const t=S.templates.find(x=>x.id===el.dataset.id);ui.drafts[ui.clientId]={isNew:true,name:t.name,startDate:nextMonday(),days:toWeek(freshIds(t.days))};ui.chooser=null;toast(`Loaded “${t.name}”. Adjust weights for this client, then save.`)},
   'plan-copy'(el){const o=client(el.dataset.id);ui.drafts[ui.clientId]={isNew:true,name:o.plan.name,startDate:nextMonday(),days:toWeek(freshIds(o.plan.days))};ui.chooser=null;toast(`Copied ${first(o.name)}'s plan. Adjust weights, then save.`)},
   "edit-plan"(){const c=client(ui.clientId),d={...clone(c.plan),isNew:false};d.days=toWeek(d.days);for(const day of d.days)for(const r of day.exercises)if(progOf(r).type==="weekly"&&hasW(r.weight)){r.weight=setWeight(r,0,today(),c.plan);r.since=mondayOf(today())}ui.drafts[c.id]=d;ui.openDay=null},
-  "prog-type"(el){const r=findDay(el.dataset.day).exercises.find(x=>x.id===el.dataset.row);r.prog={...progOf(r),type:el.dataset.v};if(el.dataset.v==="weekly")r.since=curDraft().isNew?undefined:mondayOf(today())},
+  "prog-type"(el){const r=findDay(el.dataset.day).exercises.find(x=>x.id===el.dataset.row);r.prog={...progOf(r),type:el.dataset.v};if(el.dataset.v==="weekly")r.since=draftIsNew()?undefined:sinceMon()},
   discard(){delete ui.drafts[ui.clientId];ui.saveWhen=null},
   'open-day'(el){ui.openDay=el.dataset.day===openDayId()?'':el.dataset.day},
   'add-day'(){const d=curDraft();d.days.push(newDay(`Day ${d.days.filter(x=>!x.rest).length+1}`));ui.openDay=d.days[d.days.length-1].id;ui.focus='dn-'+ui.openDay},
@@ -112,6 +119,12 @@ const ACT={
   'row-down'(el){const day=findDay(el.dataset.day),i=day.exercises.findIndex(r=>r.id===el.dataset.row);move(day.exercises,i,i+1)},
   'row-del'(el){const day=findDay(el.dataset.day);day.exercises=day.exercises.filter(r=>r.id!==el.dataset.row)},
   'add-ex'(el){const day=findDay(el.dataset.day),c=client(ui.clientId)||TPL_CLIENT,h=exHistory(c,el.dataset.ex),last=h[h.length-1];day.exercises.push({id:uid(),exId:el.dataset.ex,sets:3,reps:'10',rest:pref(coach(ui.user.id),'defaultRest'),weight:last&&last.top!=null?last.top:"",prog:{type:"none",step:2.5,every:1},note:""});ui.focus='s-'+day.id},
+  'add-typed'(el){const inp=document.getElementById('s-'+el.dataset.day),q=(inp&&inp.value||'').trim(),ql=q.toLowerCase();
+    if(!q){if(inp)inp.focus();toast('Type an exercise name, then tap +.');return 'skip'}
+    const m=S.exercises.filter(e=>e.name.toLowerCase().includes(ql)||e.group.toLowerCase()===ql),hit=S.exercises.find(e=>e.name.toLowerCase()===ql)||(m.length===1?m[0]:null);
+    if(hit)return ACT['add-ex']({dataset:{day:el.dataset.day,ex:hit.id}});
+    if(m.length){toast('Pick one from the list, or add it as a new exercise.');return 'skip'}
+    return ACT['add-new-ex']({dataset:{day:el.dataset.day,name:q}})},
   'add-new-ex'(el){const name=el.dataset.name.trim(),e={id:'u'+uid(),name,group:'Yours',pattern:'curl',noAnim:true,load:null,custom:true,coachId:ui.user.id};S.exercises.push(e);save();const day=findDay(el.dataset.day);day.exercises.push({id:uid(),exId:e.id,sets:3,reps:'10',rest:pref(coach(ui.user.id),'defaultRest'),weight:"",prog:{type:"none",step:2.5,every:1},note:""});ui.focus="s-"+day.id;toast(`Added “${name}”. Tap its name to add your own video.`)},
   'save-plan'(){const c=client(ui.clientId),d=curDraft();if(!d.startDate){toast('Pick a start date first.');return}
     // only ask "this week or next week?" once a routine is actually running
@@ -132,6 +145,29 @@ const ACT={
     ui.saveWhen=null;delete ui.drafts[c.id];save();
     scrollTo(0,0);toast(el.dataset.v==='next'?`Routine saved. It starts ${fmtDate(from)}${wn?` (${wn})`:''}.`:`Routine saved for this week${wn?` (${wn})`:''}.`)},
   'plan-from-history'(el){const c=client(ui.clientId),h=c.planHistory[+el.dataset.i];ui.drafts[c.id]={isNew:false,name:h.plan.name,startDate:c.plan.startDate,days:freshIds(h.plan.days)};ui.openDay=null;scrollTo(0,0);toast(`Loaded “${h.plan.name}”. Change it, then save it for this week or next.`)},
+  // one date only
+  'strip-week'(el){const m0=mondayOf(today()),cur=ui.stripMon&&ui.stripMon>=m0?ui.stripMon:m0;ui.stripMon=addDays(cur,7*+el.dataset.v)},
+  'day-edit'(el){const c=client(ui.clientId),d=el.dataset.v,inf=dayAt(c,d);if(!inf.day)return'skip';
+    // same ids as the routine day, so a workout already started today keeps its logged sets
+    const day=clone(inf.day);day.exercises.forEach((r,k)=>{const r0=inf.day.exercises[k];if(progOf(r0).type==='weekly'&&hasW(r0.weight)){r.weight=setWeight(r0,0,d,inf.plan);r.since=mondayOf(d)}});
+    ui.dayDraft={cid:c.id,date:d,day};ui.openDay=day.id;scrollTo(0,0)},
+  'cal-change'(el){ui.view='client';ui.clientId=el.dataset.id;ui.tab='workouts';ui.olEx=null;ui.confirm=null;return ACT['day-edit'](el)},
+  'day-scope'(el){ui.dayDraft.all=el.dataset.v==='all'},
+  'day-edit-cancel'(){ui.dayDraft=null;scrollTo(0,0)},
+  'day-edit-save'(){const c=client(ui.clientId),{date,day}=ui.dayDraft,cp=clone(day);delete cp._ex;delete cp._name;
+    if(!cp.rest&&!cp.exercises.length){toast('Add an exercise, or make it a rest day.');return'skip'}
+    c.dayEdits=c.dayEdits||{};
+    if(ui.dayDraft.all&&canApplyAll(c,date)){// change the routine itself from this week on; earlier weeks keep the old version
+      const p=c.plan,i=weekIdx(date),from=mondayOf(date),pFrom=p.activeFrom||mondayOf(p.startDate),plan=clone(p),W=WKL[i];
+      plan.id=uid();plan.days[i]={...cp,id:p.days[i].id};
+      if(pFrom<from){c.planHistory=c.planHistory||[];c.planHistory.push({from:pFrom,until:addDays(from,-1),plan:clone(p)});plan.activeFrom=from}
+      c.plan=plan;Object.keys(c.dayEdits).forEach(k=>{if(k>=date&&weekIdx(k)===i)delete c.dayEdits[k]});
+      notify(c,`${first(coach(c.coachId).name)} changed your ${W} workout, from ${fmtDate(date)} on.`);
+      ui.dayDraft=null;save();scrollTo(0,0);toast(`Saved. Every ${W} from ${fmtDate(date)} follows this.`);return}
+    c.dayEdits[date]=cp;notify(c,`${first(coach(c.coachId).name)} changed your workout for ${fmtDate(date)}.`);
+    ui.dayDraft=null;save();scrollTo(0,0);toast(`Saved. Only ${fmtDate(date)} changes.`)},
+  'day-edit-reset'(){const c=client(ui.clientId),{date}=ui.dayDraft;delete c.dayEdits[date];notify(c,`${first(coach(c.coachId).name)} put ${fmtDate(date)} back to your usual routine.`);
+    ui.dayDraft=null;save();scrollTo(0,0);toast(`${fmtDate(date)} is back to the usual routine.`)},
   'save-template'(){const d=curDraft();S.templates.push({id:uid(),coachId:ui.user.id,name:d.name,days:toWeek(freshIds(d.days))});save();toast(`Saved “${d.name}” as a template. Find it in the Templates tab.`)},
   // templates tab
   'tpl-new'(){const k=tplKey();ui.drafts[k]={isNew:true,tplId:null,name:'',desc:'',days:WK.map((_,i)=>newDay('',![0,2,4].includes(i)))};ui.clientId=k;ui.openDay=null;ui.tplUse=null;ui.tplDel=null;ui.focus='tpl-name';scrollTo(0,0)},
@@ -206,12 +242,24 @@ const ACT={
   'undo-swap'(el){const c=client(ui.user.id),T=today();if(c.swaps&&c.swaps[T])delete c.swaps[T][el.dataset.row];if(c.session&&c.session.sets)delete c.session.sets[el.dataset.row];
     c.swapFeed=(c.swapFeed||[]).filter(x=>!(x.date===T&&x.rowId===el.dataset.row));ui.swapRow=null;save();toast('Back to the original exercise.')},
   'notif-open'(){const o=notifOwner();ui.notifPrev=o.notifRead||0;o.notifRead=Date.now();save();ui.notifSheet=true;render();return'skip'},
-  'notif-go'(el){const x=notifications()[+el.dataset.i];ui.notifSheet=false;if(ui.user.role==='client')ui.view=x.go;else{ui.view='client';ui.clientId=x.id;ui.tab=x.tab;ui.olEx=null}scrollTo(0,0)},
+  'notif-go'(el){const x=notifications()[+el.dataset.i];ui.notifSheet=false;if(ui.user.role==='client')ui.view=x.go;else{ui.view='client';ui.clientId=x.id;ui.tab=x.tab;ui.olEx=null;if(x.mealDay!=null)ui.mealDay=x.mealDay}scrollTo(0,0)},
   'settings-open'(){if(ui.view!=='settings')ui.setBack=ui.view;ui.view='settings';scrollTo(0,0)},
   'settings-back'(){ui.view=ui.setBack||(ui.user.role==='coach'?'clients':'today');scrollTo(0,0)},
   'theme-open'(){ui.themeSheet=true;renderSheet();return'skip'},
   'theme-set'(el){setTheme(el.dataset.v);renderSheet();return'skip'},
   'meas-pick'(el){ui.measure=el.dataset.v},
+  // check-ins, form checks, off-plan meals, install
+  'ci-set'(el){ui.ci={...(ui.ci||{}),[el.dataset.k]:+el.dataset.v}},
+  'ci-edit'(){const ci=ciOf(client(ui.user.id),mondayOf(today()));ui.ci={kg:kg(ci.kg),sleep:ci.sleep,stress:ci.stress,note:ci.note||''}},
+  'ci-cancel'(){ui.ci=null;ui.showMeas=false;ui.showPhotos=false},
+  'toggle-photos'(){ui.showPhotos=!ui.showPhotos},
+  'ci-open'(el){ui.ciOpen=ui.ciOpen===el.dataset.id?'':el.dataset.id},
+  'ci-all'(){ui.ciAll=!ui.ciAll},
+  'mx-open'(){const sel=ui.cMealDay??weekIdx(today());ui.mealX={date:addDays(mondayOf(today()),sel),instead:'',text:'',photo:null};renderSheet();ui.focus=null;return'skip'},
+  'mx-pick'(el){ui.mealX.instead=el.dataset.v;renderSheet();return'skip'},
+  'mx-del'(el){const c=client(ui.user.id);c.mealLog[el.dataset.d]=(c.mealLog[el.dataset.d]||[]).filter(x=>x.id!==el.dataset.id);save()},
+  'install-open'(){ui.installSheet=true;renderSheet();return'skip'},
+  'install-go'(){if(installEvt){installEvt.prompt();installEvt.userChoice.finally(()=>{installEvt=null;renderSheet()})}return'skip'},
   'join-seen'(el){client(el.dataset.id).joinSeen=true;save()},
   'edit-name'(el){ui.editName=el.dataset.id},
   'cancel-edit'(){ui.editName=null},
@@ -243,7 +291,7 @@ const ACT={
   'tick-meal'(el){const c=client(ui.user.id),T=today();c.mealTicks[T]=c.mealTicks[T]||{};if(c.mealTicks[T][el.dataset.meal])delete c.mealTicks[T][el.dataset.meal];else c.mealTicks[T][el.dataset.meal]={synced:S.online};save()},
   // demo bar
   online(el){const on=el.dataset.v==='1';if(on===S.online)return'skip';S.online=on;if(on){const n=syncAll();toast(n?`Back online. Synced ${n} change${n>1?'s':''}.`:'Back online.')}else toast("Client's phone is offline. Logging still works.");save()},
-  reset(){try{localStorage.removeItem(KEY)}catch(e){}S=seed();Object.assign(ui,{drafts:{},mealDrafts:{},chooser:null,preview:null,confirm:null,olEx:null,finishing:null,ready:null,swapRow:null,remSheet:false,invite:null,ob:null,obStep:1,join:null});stopTimer();if(!(ui.user.role==='coach'?coach(ui.user.id):client(ui.user.id)))ui.user={role:'coach',id:'co1'};ui.view=ui.user.role==='coach'?'clients':'today';save();toast('Sample data reset.')},
+  reset(){try{localStorage.removeItem(KEY)}catch(e){}S=seed();Object.assign(ui,{dayDraft:null,ci:null,mealX:null,drafts:{},mealDrafts:{},chooser:null,preview:null,confirm:null,olEx:null,finishing:null,ready:null,swapRow:null,remSheet:false,invite:null,ob:null,obStep:1,join:null});stopTimer();if(!(ui.user.role==='coach'?coach(ui.user.id):client(ui.user.id)))ui.user={role:'coach',id:'co1'};ui.view=ui.user.role==='coach'?'clients':'today';save();toast('Sample data reset.')},
 };
 document.addEventListener('click',e=>{
   if(e.target.id==='sheet'){closeSheets();return}
@@ -259,16 +307,19 @@ document.addEventListener('input',e=>{
     if(f==='sets'||f==='rest')r[f]=Math.max(f==='sets'?1:0,parseInt(t.value)||0);
     else if(f==='weight')r.weight=t.value.trim()===''?'':+String(t.value).replace(',','.')||'';
     else r[f]=t.value;
-    if(f==='weight'&&progOf(r).type==='weekly'&&!curDraft().isNew)r.since=mondayOf(today());
-    const pp=$('#pp-'+r.id);if(pp){pp.textContent=progSentence(r,curDraft());pp.hidden=!pp.textContent}return}
+    if(f==='weight'&&progOf(r).type==='weekly'&&!draftIsNew())r.since=sinceMon();
+    const pp=$('#pp-'+r.id);if(pp){pp.textContent=progSentence(r,draftPlan());pp.hidden=!pp.textContent}return}
   if(ds.pg){const r=findDay(ds.day).exercises.find(x=>x.id===ds.row),v=+String(t.value).replace(',','.').replace('−','-');
-    if(!isNaN(v)){r.prog={...progOf(r),[ds.pg]:ds.pg==='every'?Math.max(1,Math.round(v)||1):v};if(ds.pg==='step'&&progOf(r).type==='weekly'&&!curDraft().isNew)r.since=mondayOf(today())}
-    const pp=$('#pp-'+r.id);if(pp){pp.textContent=progSentence(r,curDraft());pp.hidden=!pp.textContent}return}
+    if(!isNaN(v)){r.prog={...progOf(r),[ds.pg]:ds.pg==='every'?Math.max(1,Math.round(v)||1):v};if(ds.pg==='step'&&progOf(r).type==='weekly'&&!draftIsNew())r.since=sinceMon()}
+    const pp=$('#pp-'+r.id);if(pp){pp.textContent=progSentence(r,draftPlan());pp.hidden=!pp.textContent}return}
   if(ds.ob){ui.ob[ds.ob]=t.value;const b=$('#ob-go1');if(b)b.disabled=!ui.ob.name.trim();return}
   if(ds.xnote){const c=client(ui.user.id);if(c.session){c.session.notes=c.session.notes||{};c.session.notes[ds.xnote]=t.value;save()}return}
   if(ds.fnote!==undefined){if(ui.finishing)ui.finishing.note=t.value;return}
   if(ds.rem==='time'){const c=client(ui.user.id);c.reminder={...(c.reminder||{on:true}),time:t.value||'07:00'};save();return}
   if(ds.search){$('#r-'+ds.search).innerHTML=searchResults(ds.search,t.value);return}
+  if(ds.ci){ui.ci=ui.ci||{};ui.ci[ds.ci]=t.value;return}
+  if(ds.mx){if(ui.mealX)ui.mealX[ds.mx]=t.value;return}
+  if(ds.fcnote){const x=(client(ui.user.id).formChecks||[]).find(y=>y.id===ds.fcnote);if(x){x.note=t.value;save()}return}
   if(ds.libsearch!==undefined){ui.libQ=t.value;$('#lib-list').innerHTML=libItems();return}
   const updTotals=()=>{const d=mealDraftDay(),tt=dayTotals(d),el=$('#meal-totals');if(el)el.innerHTML=bar(tt.kcal,+d.kcal,'Planned kcal')+bar(tt.protein,+d.protein,'Planned protein g')};
   if(ds.mt){mealDraftDay()[ds.mt]=t.value;updTotals();return}
@@ -278,7 +329,7 @@ document.addEventListener('input',e=>{
 });
 document.addEventListener('keydown',e=>{
   if(e.key==='Enter'&&e.target.dataset&&e.target.dataset.search){e.preventDefault();const b=$('#r-'+e.target.dataset.search+' button');if(b)b.click()}
-  if(e.key==='Escape'&&(ui.preview||ui.finishing||ui.swapRow||ui.remSheet||ui.nameSheet||ui.themeSheet||ui.notifSheet))closeSheets();
+  if(e.key==='Escape'&&(ui.preview||ui.finishing||ui.swapRow||ui.remSheet||ui.nameSheet||ui.themeSheet||ui.notifSheet||ui.installSheet||ui.mealX))closeSheets();
 });
 function readVideo(file,done){
   if(file.size>3*1024*1024){toast('That video is over 3 MB. Trim it to a few seconds so it loads fast and works offline.');return}
@@ -286,7 +337,7 @@ function readVideo(file,done){
 }
 document.addEventListener('change',e=>{
   const t=e.target;
-  if(t.id==='who'){const[role,id]=t.value.split(':');ui.user={role,id};ui.view=role==='coach'?'clients':'today';Object.assign(ui,{chooser:null,preview:null,olEx:null,finishing:null,confirm:null,cMealDay:null,swapRow:null,remSheet:false,themeSheet:false,notifSheet:false,invite:null,ob:null,obStep:1,join:null,repClient:null});stopTimer();render();scrollTo(0,0);return}
+  if(t.id==='who'){const[role,id]=t.value.split(':');ui.user={role,id};ui.view=role==='coach'?'clients':'today';Object.assign(ui,{chooser:null,preview:null,olEx:null,finishing:null,confirm:null,cMealDay:null,swapRow:null,remSheet:false,themeSheet:false,notifSheet:false,installSheet:false,mealX:null,ci:null,dayDraft:null,ciOpen:null,showMeas:false,showPhotos:false,invite:null,ob:null,obStep:1,join:null,repClient:null});stopTimer();render();scrollTo(0,0);return}
   if(t.dataset.pref){const o=notifOwner();o.prefs=o.prefs||{};o.prefs[t.dataset.pref]=t.type==='checkbox'?t.checked:+t.value;save();return}
   if(t.dataset.setlogo!==undefined&&t.files[0]){shrinkImage(t.files[0],200,src=>{coach(ui.user.id).logo=src;save();render();toast('Logo saved.')});return}
   if(t.dataset.pf==='startDate'){render();return}
@@ -295,6 +346,11 @@ document.addEventListener('change',e=>{
   if(t.dataset.oblogo!==undefined&&t.files[0]){shrinkImage(t.files[0],200,src=>{ui.ob.logo=src;render()});return}
   if(t.dataset.rf==="weight"){const dis=t.closest(".exrow").querySelector(".segp button[disabled]");if(!!dis===(t.value.trim()!==""))render();return}
   if(t.dataset.vid&&t.files[0]){readVideo(t.files[0],src=>{exById(t.dataset.vid).video=src;save();renderSheet();toast('Video saved. Clients see it instead of the animation.')});return}
+  if(t.dataset.fcfile&&t.files[0]){const c=client(ui.user.id),file=t.files[0],cn=first(coach(c.coachId).name);
+    if(file.size>150*1024*1024){toast('That video is very long. Film one set, about 10 to 30 seconds.');return}
+    const id=uid();VDB.put(id,file).then(()=>{vURL[id]=URL.createObjectURL(file);c.formChecks=c.formChecks||[];c.formChecks.push({id,date:today(),exId:t.dataset.fcfile,note:'',ts:Date.now(),synced:S.online,reply:null});save();render();toast(S.online?`Sent to ${cn}. Add a note if you like.`:`Saved on this phone. It sends when you're back online.`)})
+      .catch(()=>toast("This browser couldn't save the video. Try a shorter clip."));return}
+  if(t.dataset.mxphoto!==undefined&&t.files[0]){shrinkImage(t.files[0],480,src=>{ui.mealX.photo=src;renderSheet()});return}
   if(t.dataset.photo&&t.files[0]){
     const c=client(ui.user.id),angle=t.dataset.photo,img=new Image();
     img.onload=()=>{const W=360,H=Math.round(img.height*W/img.width),cv=document.createElement('canvas');cv.width=W;cv.height=H;cv.getContext('2d').drawImage(img,0,0,W,H);
@@ -311,9 +367,22 @@ document.addEventListener('submit',e=>{
   if(k==='my-name'){const c=client(ui.user.id),n=String(fd.get('name')||'').trim();if(!n){toast('Enter a name.');return}c.selfName=n;ui.nameSheet=false;save();render();toast(`Got it, ${first(n)}.`);return}
   if(k==='join'){const c=client(ui.user.id);if(String(fd.get('pw')).length<8){toast('Use at least 8 characters for your password.');return}const nm=String(fd.get('name')||'').trim();c.invitedAs=c.name;if(nm){c.name=nm;c.selfName=nm}c.status='active';c.joinedTs=Date.now();c.joinSeen=false;c.joinedAt=today();ui.join=null;c.notes.unshift({id:uid(),text:`Welcome! You're now connected to ${coach(c.coachId).name}. Your plan shows here as soon as it's ready.`,ts:Date.now()});save();render();toast('Welcome to Spotter.');return}
   if(k==='send'){const text=fd.get('text').trim();if(!text)return;const role=ui.user.role,c=role==='coach'?client(ui.clientId):client(ui.user.id);c.messages.push({from:role,text,ts:Date.now(),synced:role==='coach'?true:S.online});if(role==='coach')c.coachRead=Date.now();save();ui.focus='msg-input';render();return}
-  if(k==='weight'){const mm={};MEAS.forEach(([m])=>{const v=parseFloat(String(fd.get('m_'+m)||'').replace(',','.'));if(v>10&&v<300)mm[m]=Math.round(v*10)/10});
-    if(Object.keys(mm).length){const c0=client(ui.user.id),dt=fd.get('date')||today();c0.measures=(c0.measures||[]).filter(x=>x.date!==dt);c0.measures.push({id:uid(),date:dt,...mm,synced:S.online})}
-    const v=parseFloat(String(fd.get('kg')).replace(',','.'));if(!(v>20&&v<400)){toast('Enter your weight in kilograms, for example 78.4.');return}const c=client(ui.user.id),date=fd.get('date')||today();c.weights=c.weights.filter(w=>w.date!==date);c.weights.push({id:uid(),date,kg:Math.round(v*10)/10,synced:S.online});save();render();toast('Weigh-in saved.');return}
+  if(k==='checkin'){const c=client(ui.user.id),v=ui.ci||{},T=today(),mon=mondayOf(T),cn=first(coach(c.coachId).name),w=parseFloat(String(v.kg||'').replace(',','.'));
+    if(!(w>20&&w<400)){toast('Enter your weight in kilograms, for example 78.4.');ui.focus='ci-kg';render();return}
+    if(!v.sleep||!v.stress){toast('Tap a number for sleep and for stress.');return}
+    const mm={};MEAS.forEach(([m])=>{const x=parseFloat(String(v['m_'+m]||'').replace(',','.'));if(x>10&&x<300)mm[m]=Math.round(x*10)/10});
+    if(Object.keys(mm).length){c.measures=(c.measures||[]).filter(x=>x.date!==T);c.measures.push({id:uid(),date:T,...mm,synced:S.online})}
+    const kgv=Math.round(w*10)/10;c.weights=c.weights.filter(x=>x.date!==T);c.weights.push({id:uid(),date:T,kg:kgv,synced:S.online});
+    const old=ciOf(c,mon);c.checkins=(c.checkins||[]).filter(x=>x.week!==mon);
+    c.checkins.push({id:old?old.id:uid(),week:mon,date:T,kg:kgv,sleep:v.sleep,stress:v.stress,note:String(v.note||'').trim(),ts:Date.now(),synced:S.online,reply:old?old.reply:null});
+    ui.ci=null;ui.showMeas=false;ui.showPhotos=false;save();render();scrollTo(0,0);toast(S.online?`Check-in sent. ${cn} will reply here.`:"Saved on this phone. It sends when you're back online.");return}
+  if(k==='ci-reply'||k==='fc-reply'){const c=client(ui.clientId),text=String(fd.get('text')||'').trim();if(!text){toast('Write a reply first.');return}
+    const x=(k==='ci-reply'?c.checkins:c.formChecks).find(y=>y.id===f.dataset.id);x.reply={text,ts:Date.now()};const cn=first(coach(c.coachId).name);
+    notify(c,k==='ci-reply'?`${cn} replied to your weekly check-in.`:`${cn} replied to your ${exById(x.exId).name} form check.`,'progress');save();render();toast(`Reply sent to ${first(c.name)}.`);return}
+  if(k==='mx'){const c=client(ui.user.id),m=ui.mealX,text=(m.text||'').trim();if(!text&&!m.photo){toast('Say what you ate, or add a photo.');return}
+    c.mealLog=c.mealLog||{};(c.mealLog[m.date]=c.mealLog[m.date]||[]).push({id:uid(),instead:m.instead||null,text,photo:m.photo||null,ts:Date.now(),synced:S.online});
+    if(m.instead&&c.mealTicks[m.date])delete c.mealTicks[m.date][m.instead];// the planned meal wasn't eaten
+    ui.mealX=null;save();render();toast(S.online?`Logged. ${first(coach(c.coachId).name)} can see it.`:"Saved on this phone. It sends when you're back online.");return}
   if(k==='add-ex'){const like=exById(fd.get('like')),name=fd.get('name').trim(),file=fd.get('video');
     const done=video=>{S.exercises.push({id:'u'+uid(),name,group:fd.get('group'),pattern:like.pattern,load:like.load,custom:true,coachId:ui.user.id,video:video||undefined});save();ui.libGroup='Yours';ui.libQ='';render();toast(`Added “${name}”.`)};
     if(file&&file.size)readVideo(file,done);else done(null)}
@@ -328,3 +397,5 @@ document.addEventListener('dragend',()=>{drag=null;document.querySelectorAll('.e
 
 render();
 SpotterAnim.start();
+// installed app: keep working offline (only where the page is its own site, not inside a preview frame)
+if('serviceWorker' in navigator&&location.protocol==='https:'&&window.top===window)navigator.serviceWorker.register('sw.js').catch(()=>{});

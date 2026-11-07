@@ -19,6 +19,7 @@ function alertsFor(c,st,ol){
   const nn=newNotes(c).length,ns=newSwaps(c).length;
   if(nn)a.push(`<span class="pill warn">${nn} new note${nn>1?'s':''}</span>`);
   if(ns)a.push(`<span class="pill warn">${ns} exercise swap${ns>1?'s':''}</span>`);
+  const ta=toAnswer(c);if(ta)a.push(`<span class="pill acc">${ta} check-in${ta>1?'s':''} to answer</span>`);
   return a;
 }
 function clientsView(co){
@@ -51,14 +52,14 @@ function coachClient(co){
   if(ui.tab==='chat'){c.coachRead=Date.now();save()}
   if(ui.tab==='workouts'&&(newNotes(c).length||newSwaps(c).length)){ui.seenBefore={id:c.id,t:c.notesSeen||0};c.notesSeen=Date.now();save()}
   const unread=c.messages.filter(m=>m.from==='client'&&m.synced!==false&&m.ts>c.coachRead).length;
-  const tabs=isInvited(c)?[['workouts','Workouts'],['meals','Meals']]:[['workouts','Workouts'],['overload','Lifts'],['meals','Meals'],['progress','Progress'],['chat','Chat'+(unread?` (${unread})`:'')]];
+  const tabs=isInvited(c)?[['workouts','Workouts'],['meals','Meals']]:[['workouts','Workouts'],['overload','Lifts'],['meals','Meals'],['progress','Check-ins'+(toAnswer(c)?` (${toAnswer(c)})`:'')],['chat','Chat'+(unread?` (${unread})`:'')]];
   if(!tabs.some(t=>t[0]===ui.tab))ui.tab='workouts';
   let body='';
   if(ui.tab==='workouts')body=coachWorkouts(c);
   else if(ui.tab==='report')body=reportView(c);
   else if(ui.tab==='overload')body=overloadView(c,'coach');
   else if(ui.tab==='meals')body=coachMeals(c);
-  else if(ui.tab==='progress')body=`<h2>Body weight</h2>${weightChart(visW(c))}<h2>Body measurements</h2>${measurementsView(c,'coach')}<h2>Progress photos</h2>${photosHistory(c.photos.filter(p=>p.synced!==false))}`;
+  else if(ui.tab==='progress')body=coachCheckins(c)+`<h2>Body weight</h2>${weightChart(visW(c))}<h2>Body measurements</h2>${measurementsView(c,'coach')}<h2>Progress photos</h2>${photosHistory(c.photos.filter(p=>p.synced!==false))}`;
   else body=chatView(c,'coach');
   const cf=ui.confirm&&ui.confirm.id===c.id?ui.confirm.kind:null;
   return `<div class="exbar"><button class="back" data-act="nav" data-v="clients">‹ Clients</button><span class="toplinks"><button class="icon-btn" data-act="edit-name" data-id="${c.id}">Edit details</button><span aria-hidden="true">·</span>${isInvited(c)?`<button class="icon-btn" data-act="inv-go" data-id="${c.id}">Manage invite</button>`:`<button class="icon-btn" data-act="ask-archive" data-id="${c.id}">Remove client</button>`}</span></div>
@@ -76,6 +77,7 @@ function coachClient(co){
 }
 function coachWorkouts(c){
   const d=ui.drafts[c.id];if(d)return planEditor(c,d);
+  if(ui.dayDraft&&ui.dayDraft.cid===c.id)return dayEditView(c);
   let out='';
   if(ui.chooser===c.id)out+=planChooser(c);
   else if(!c.plan)out+=`<div class="card hud empty"><h2>No routine yet</h2><p class="muted">Build ${esc(first(c.name))}'s routine day by day, start from a template, or copy another client's routine.</p><button class="btn primary" data-act="new-plan">New routine</button></div>`;
@@ -86,6 +88,7 @@ function coachWorkouts(c){
     out+=`<div class="weekbanner hud"><span class="mono">${wkNow>=1?'WEEK '+wkNow:'NOT STARTED'}</span><span>${wkNow>=1?weekRange(mondayOf(T)):`Starts ${fmtDate(from)}`}</span></div>`;
     if(future){const cur=planAt(c,T),wn=weekName(c,from);out+=`<div class="note-banner"><p>${cur?`This week ${esc(first(c.name))} is still on <b>${esc(cur.name)}</b>. `:''}The routine below starts on <b>${fmtDate(from)}</b>${wn?` (${wn})`:''}.</p></div>`}
     out+=`<div class="section-hd"><div><p class="eyebrow">${future?`Starts ${fmtDate(from)}`:'Current routine'}</p><h2>${esc(c.plan.name)}</h2><p class="hint">Repeats every week</p></div><div class="btnrow"><button class="btn" data-act="new-plan">New routine</button><button class="btn primary" data-act="edit-plan">Edit routine</button></div></div>
+    ${dateStrip(c)}
     <ol class="plan-days">${c.plan.days.map((day,i)=>`<li class="${inf.idx===i?'today':''}"><span class="dn mono">${WK[i].toUpperCase()}</span><span class="dd"><b>${esc(dayTitle(day))}${inf.idx===i?' <span class="pill acc">Today</span>':''}</b>${day.rest?'':day.exercises.map(r=>`<span class="pl-ex">${thumb(exById(r.exId))}<span class="pl-txt"><b>${esc(exById(r.exId).name)}</b><small>${repsText(r.sets,r.reps)}${weightText(r,today(),c.plan)?` · ${weightText(r,today(),c.plan)}`:""}${progTag(r)?` <i class="auto">${progTag(r)}</i>`:""}</small></span></span>`).join('')||'<small>No exercises yet</small>'}</span></li>`).join('')}</ol>`;
   }
   const hist=(c.planHistory||[]).map((h,i)=>({...h,i})).reverse();
@@ -120,21 +123,21 @@ function planEditor(c,d){
   <div class="savebar"><button class="btn ghost" data-act="discard">Discard</button><button class="btn" data-act="save-template">Save as template</button><button class="btn primary" data-act="save-plan">Save routine</button></div></section>`;
 }
 function openDayId(){const d=curDraft();if(!d)return null;if(ui.openDay===''||d.days.some(x=>x.id===ui.openDay))return ui.openDay;const t=d.days.find(x=>!x.rest)||d.days[0];return t&&t.id}
-function dayEditor(c,day,i){
-  const tools=`<div class="day-tools"><button class="icon-btn" data-act="toggle-rest" data-day="${day.id}">${day.rest?'Make it a training day':'Make it a rest day'}</button>${day.rest?'':`<span class="copyto-inline"><span class="hint">Copy to</span>${WK.map((w,j)=>j===i?'':`<button class="chip" data-act="copy-day-to" data-day="${day.id}" data-to="${j}">${w}</button>`).join('')}</span>`}</div>`;
-  const hd=`<div class="day-hd"><span class="daynum mono">${WK[i].toUpperCase()}</span><span class="dh-name"><b>${WKL[i]}</b>${day.rest?'<small>Rest day</small>':`<input class="dayname" id="dn-${day.id}" data-df="name" data-day="${day.id}" value="${esc(day.name)}" placeholder="What's trained? e.g. Upper body" aria-label="What is trained on ${WKL[i]}">`}</span><button class="icon-btn chev-btn" data-act="open-day" data-day="" aria-expanded="true" aria-label="Collapse ${WKL[i]}">▴</button></div>`;
-  if(openDayId()!==day.id){
+function dayEditor(c,day,i,one){
+  const tools=`<div class="day-tools"><button class="${day.rest?'btn sm':'icon-btn'}" data-act="toggle-rest" data-day="${day.id}">${day.rest?'Make it a training day':'Make it a rest day'}</button>${day.rest||one?'':`<span class="copyto-inline"><span class="hint">Copy to</span>${WK.map((w,j)=>j===i?'':`<button class="chip" data-act="copy-day-to" data-day="${day.id}" data-to="${j}">${w}</button>`).join('')}</span>`}</div>`;
+  const hd=`<div class="day-hd"><span class="daynum mono">${WK[i].toUpperCase()}</span><span class="dh-name">${day.rest?'<small>Rest day</small>':`<input class="dayname" id="dn-${day.id}" data-df="name" data-day="${day.id}" value="${esc(day.name)}" placeholder="Name this day, e.g. Upper body" aria-label="What is trained on ${WKL[i]}">`}</span>${one?'':`<button class="icon-btn chev-btn" data-act="open-day" data-day="" aria-expanded="true" aria-label="Collapse ${WKL[i]}">▴</button>`}</div>`;
+  if(!one&&openDayId()!==day.id){
     const sum=day.rest?'Rest day':day.exercises.length?`${day.exercises.length} exercise${day.exercises.length>1?'s':''} · ${day.exercises.slice(0,3).map(r=>esc(exById(r.exId).name)).join(', ')}${day.exercises.length>3?'…':''}`:'No exercises yet';
     return `<section class="day collapsed ${day.rest?'rest':''}"><button class="dayhead" data-act="open-day" data-day="${day.id}" aria-expanded="false"><span class="daynum mono">${WK[i].toUpperCase()}</span><span class="dh-name"><b>${WKL[i]}${!day.rest&&day.name?` · ${esc(day.name)}`:''}</b><small>${sum}</small></span><span class="chev" aria-hidden="true">▾</span></button></section>`;
   }
   if(day.rest)return `<section class="day rest open">${hd}${tools}</section>`;
   return `<section class="day open">${hd}<ol class="exlist">${day.exercises.map(r=>{const ex=exById(r.exId),h=exHistory(c,r.exId),last=h[h.length-1],a=`data-day="${day.id}" data-row="${r.id}"`;return `<li class="exrow" ${a}>
     <div class="ex-hd"><span class="grip" title="Drag to reorder">⠿</span>${thumb(ex)}<span class="exname"><button class="exlink" data-act="preview-ex" data-id="${ex.id}" title="Watch the animation or add your own video">${esc(ex.name)} <span aria-hidden="true">▸</span></button><small>${last?`Last time: ${setsText(last.sets)}`:esc(ex.group)}</small>${last?`<span>${statusPill(overload(h))}</span>`:''}</span><span class="rowbtns"><button class="icon-btn" data-act="row-up" ${a} aria-label="Move up">↑</button><button class="icon-btn" data-act="row-down" ${a} aria-label="Move down">↓</button><button class="icon-btn" data-act="row-del" ${a} aria-label="Remove ${esc(ex.name)}">✕</button></span></div>
-    <div class="ex-fields"><label>Sets<input id="rs-${r.id}" type="number" min="1" inputmode="numeric" data-rf="sets" ${a} value="${r.sets}"></label><label>Reps<input id="rr-${r.id}" data-rf="reps" ${a} value="${esc(r.reps)}"></label><label>${progOf(r).type==="weekly"?"This week kg":progOf(r).type==="sets"?"1st set kg":"Weight kg"}<input id="rw-${r.id}" inputmode="decimal" data-rf="weight" ${a} value="${kg(r.weight)}" placeholder="kg"></label><label>Rest s<input id="rt-${r.id}" type="number" min="0" step="15" inputmode="numeric" data-rf="rest" ${a} value="${r.rest}"></label></div>
+    <div class="ex-fields"><label>Sets<input id="rs-${r.id}" type="number" min="1" inputmode="numeric" data-rf="sets" ${a} value="${r.sets}"></label><label>Reps<input id="rr-${r.id}" data-rf="reps" ${a} value="${esc(r.reps)}"></label><label>${progOf(r).type==="weekly"&&!one?"This week kg":progOf(r).type==="sets"?"1st set kg":"Weight kg"}<input id="rw-${r.id}" inputmode="decimal" data-rf="weight" ${a} value="${kg(r.weight)}" placeholder="kg"></label><label>Rest s<input id="rt-${r.id}" type="number" min="0" step="15" inputmode="numeric" data-rf="rest" ${a} value="${r.rest}"></label></div>
     <input class="note" id="rn-${r.id}" data-rf="note" ${a} value="${esc(r.note)}" placeholder="Note for the client (optional)">
     ${progEditor(c,r,a)}
   </li>`}).join('')}</ol>
-  <div class="adder"><input type="search" id="s-${day.id}" data-search="${day.id}" placeholder="Search exercises or type a new one" autocomplete="off" aria-label="Add exercise to ${esc(day.name)}"><div class="results" id="r-${day.id}"></div></div>${tools}</section>`;
+  <div class="adder"><div class="adder-row"><input type="search" id="s-${day.id}" data-search="${day.id}" placeholder="Search exercises or type a new one" autocomplete="off" aria-label="Add exercise to ${esc(day.name)}"><button class="addbtn" data-act="add-typed" data-day="${day.id}" aria-label="Add exercise" title="Add exercise">+</button></div><div class="results" id="r-${day.id}"></div></div>${tools}</section>`;
 }
 function progEditor(c,r,a){
   const p=progOf(r),plan=curDraft()||c.plan,bw=!hasW(r.weight);
@@ -178,4 +181,23 @@ function overloadDetail(c,exId){
   <p class="eyebrow">${weighted?'Heaviest set each session (kg)':'Total reps each session'} · filled dots are personal bests</p>
   ${lineChart(pts,{unit:weighted?'kg':'reps',label:ex.name+' progress'})}
   <div class="logs"><div class="log"><div class="lbody" style="padding-top:10px">${h.slice().reverse().map(x=>`<div><span>${fmtDate(x.date)}</span><span class="mono">${setsText(x.sets)}</span></div>`).join('')}</div></div></div>`;
+}
+/* One date only: a slim row of dates above the routine; tapping one edits just that day (saved in c.dayEdits) */
+function dateStrip(c){
+  const T=today(),m0=mondayOf(T),mon=ui.stripMon&&ui.stripMon>=m0?ui.stripMon:m0,max=addDays(m0,7*8),edits=c.dayEdits||{};
+  const chips=Array.from({length:7},(_,i)=>{const d=addDays(mon,i),inf=dayAt(c,d),ok=d>=T&&!!inf.day,type=edits[d]?'CHANGED':inf.day?(inf.day.rest?'REST':'TRAIN'):'';
+    return `<button class="wchip ${d===T?'today':''} ${edits[d]?'edited':''}" ${ok?`data-act="day-edit" data-v="${d}"`:'disabled'} aria-label="${fmtDate(d)}${inf.day?`: ${esc(dayTitle(inf.day))}`:''}${edits[d]?', changed for this day':''}"><span>${WK[i]}</span><b class="mono">${+d.slice(8)}</b><i>${type}</i></button>`}).join('');
+  return `<div class="datestrip"><div class="ds-hd"><span class="eyebrow">Change one day</span><span class="ds-nav"><button class="icon-btn" data-act="strip-week" data-v="-1" ${mon<=m0?'disabled':''} aria-label="Earlier week">‹</button><span class="mono">${weekRange(mon)}</span><button class="icon-btn" data-act="strip-week" data-v="1" ${mon>=max?'disabled':''} aria-label="Later week">›</button></span></div><div class="weekchips">${chips}</div></div>`;
+}
+// "Every Saturday" only makes sense for a weekly routine that is the one running on that date
+const canApplyAll=(c,d)=>!!(c.plan&&c.plan.days.length===7&&planAt(c,d)===c.plan);
+function dayEditView(c){
+  const dd=ui.dayDraft,d=dd.date,i=weekIdx(d),had=!!(c.dayEdits||{})[d],base=dayAt(c,d,true).day,wn=weekName(c,d),can=canApplyAll(c,d),all=can&&dd.all,W=WKL[i];
+  const hint=all?`Every ${W} from ${fmtDate(d)} on. Earlier ${W}s stay as they were.`:`Only this date changes. Other ${W}s stay ${base?esc(dayTitle(base)):'as they are'}.`;
+  const scope=can?`<div class="whenbox scopebox"><span class="whenlabel">Apply to</span><div class="whenseg" role="group" aria-label="Which days this change applies to">${[['one','Only this day'],['all',`Every ${W}`]].map(([v,l])=>`<button class="${(all?'all':'one')===v?'on':''}" data-act="day-scope" data-v="${v}" aria-pressed="${(all?'all':'one')===v}">${l}</button>`).join('')}</div></div>`:'';
+  return `<section class="editor"><button class="back" data-act="day-edit-cancel">‹ Routine</button>
+  <div class="ed-hd"><p class="eyebrow">${wn||'One day only'}</p><h2>${fmtDate(d)}</h2><p class="hint">${hint}</p></div>
+  ${dayEditor(c,dd.day,i,true)}
+  ${scope}
+  <div class="savebar"><button class="btn ghost" data-act="day-edit-cancel">Cancel</button>${had&&!all?'<button class="btn" data-act="day-edit-reset">Undo change</button>':''}<button class="btn primary" data-act="day-edit-save">${all?`Save every ${W}`:'Save this day'}</button></div></section>`;
 }

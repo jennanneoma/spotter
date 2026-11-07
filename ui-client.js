@@ -20,12 +20,13 @@ function todayView(c){
   const T=today(),inf=dayAt(c,T),co=coach(c.coachId);
   let out='';
   const st=stats(c),adh=adherence(c),stk=streak(c);
-  out+=`<header class="hd"><p class="eyebrow">${weekName(c,T)?`${weekName(c,T)} · `:''}${fmtLong(T)}</p><h1>${inf.day?esc(dayTitle(inf.day)):inf.notStarted?'Plan starts soon':'Today'}</h1></header>
+  out+=`<header class="hd"><p class="eyebrow">${weekName(c,T)?`${weekName(c,T)} · `:''}${fmtLong(T)}</p><h1>${inf.day?esc(dayTitle(inf.day)):inf.notStarted?'Plan starts soon':'Today'}</h1>${inf.edited?`<p class="sub">${esc(first(co.name))} changed today's workout, just for today.</p>`:''}</header>
   <div class="hudrow">${ring(adh??0,adh==null?'–':adh+'%','on plan')}<div class="tile hud"><small>Streak</small><b class="mono">${stk}</b><i>workouts in a row</i></div><div class="tile hud"><small>This week</small><b class="mono">${st.week}<i>/${st.planned}</i></b><i>workouts</i></div></div>`;
   if(c.plan){
     const mon=mondayOf(T);
     out+=`<div class="week" aria-label="This week">${Array.from({length:7},(_,i)=>{const d=addDays(mon,i),di=dayAt(c,d),done=c.logs.some(l=>l.date===d),train=di.day&&!di.day.rest;const cls=[d===T?'today':'',done?'done':train&&d<T?'missed':train?'train':''].join(' ');return `<div class="wd ${cls}" title="${di.day?esc(dayTitle(di.day)):''}">${WK[i].slice(0,1)}<b class="mono">${new Date(d+'T12:00').getDate()}</b><i></i></div>`}).join('')}</div>`;
   }
+  out+=checkinNudge(c);
   if(inf.none)return out+`<div class="card hud empty"><h2>No plan yet</h2><p class="muted">${esc(co.name)} is putting your plan together. You'll get a notification when it's ready.</p></div>`;
   if(inf.notStarted)return out+`<div class="card hud empty"><h2>Your plan starts ${fmtDate(inf.start)}</h2><p class="muted">${esc(c.plan.name)}. Rest up until then.</p></div>`;
   if(inf.day.rest){
@@ -79,7 +80,8 @@ function exerciseView(c){
   ${sets.map((s,i)=>`<div class="setrow ${s.done?'done':''}"><span class="setn mono">${i+1}</span><input id="w-${r.id}-${i}" inputmode="decimal" data-sf="w" data-row="${r.id}" data-i="${i}" value="${esc(s.w)}" placeholder="kg" aria-label="Set ${i+1} weight in kg"><input id="r-${r.id}-${i}" inputmode="numeric" data-sf="r" data-row="${r.id}" data-i="${i}" value="${esc(s.r)}" aria-label="Set ${i+1} reps"><button class="tick" data-act="set-done" data-row="${r.id}" data-i="${i}" aria-pressed="${s.done}" aria-label="${s.done?'Undo':'Confirm'} set ${i+1}">✓</button></div>`).join('')}</div>
   <label class="xnote">Note for ${esc(first(co.name))} (optional)<textarea id="xn-${r.id}" data-xnote="${r.id}" rows="2" placeholder="e.g. Knee felt sore on the last set">${esc((c.session&&c.session.notes&&c.session.notes[r.id])||'')}</textarea></label>
   <p class="hint">${prev?`Last time: <span class="mono">${setsText(prev)}</span>. ${hasW(r.weight)&&prev[0]&&+prev[0].w<w0?`Up from last time: ${kg(w0)} kg. `:""}Numbers are filled in, so tap ✓ if nothing changed.`:'First time on this one. Enter what you lift, then tap ✓.'}</p>
-  <button class="btn swapbtn" data-act="swap-open" data-row="${r.id}"><span aria-hidden="true">⇄</span> ${r.swappedFrom?'Change swap':'Machine busy? Swap exercise'}</button>
+  <div class="exactions"><button class="btn swapbtn" data-act="swap-open" data-row="${r.id}"><span aria-hidden="true">⇄</span> ${r.swappedFrom?'Change swap':'Swap exercise'}</button>${fcButton(c,r)}</div>
+  ${formCheckBox(c,r)}
   <div class="exnav">${idx>0?`<button class="btn" data-act="open-ex" data-row="${rows[idx-1].id}">‹ Previous</button>`:''}${idx<rows.length-1?`<button class="btn primary" data-act="open-ex" data-row="${rows[idx+1].id}">Next: ${esc(exById(effRow(c,rows[idx+1]).exId).name)} ›</button>`:`<button class="btn primary" data-act="nav" data-v="today">Back to workout</button>`}</div>`;
 }
 function finishSummary(c){
@@ -111,23 +113,21 @@ function clientMeals(c){
   ${weekStrip(c,sel,'cmeal-day',c.meals.days)}
   <div class="hudrow">${ring(tk?eaten.kcal/tk*100:0,Math.round(eaten.kcal),'of '+tk+' kcal',96)}${ring(tp?eaten.protein/tp*100:0,Math.round(eaten.protein)+'g','of '+tp+' g protein',96)}</div>
   ${isToday?'<p class="hint">Tick each meal when you\'ve eaten it.</p>':'<p class="hint">You can tick meals on the day itself.</p>'}
-  <div class="meals">${day.meals.map(m=>{const t=mealTotals(m);return `<button class="meal ${ticks[m.id]?'on':''}" ${isToday?`data-act="tick-meal" data-meal="${m.id}"`:'disabled'} aria-pressed="${!!ticks[m.id]}"><span class="box">✓</span><span class="mb"><span class="mhead"><b>${esc(m.name)}</b><small class="mono">${t.kcal} kcal · ${t.protein} g</small></span><ul>${m.foods.map(f=>`<li><span>${esc(f.food)}</span><span>${esc(f.portion)}</span></li>`).join('')}</ul></span></button>`}).join('')||'<p class="hint">Nothing planned for this day.</p>'}</div>`;
+  <div class="meals">${day.meals.map(m=>{const t=mealTotals(m);return `<button class="meal ${ticks[m.id]?'on':''}" ${isToday?`data-act="tick-meal" data-meal="${m.id}"`:'disabled'} aria-pressed="${!!ticks[m.id]}"><span class="box">✓</span><span class="mb"><span class="mhead"><b>${esc(m.name)}${swappedMeal(c,date,m.id,'client')?' <span class="pill warn">Swapped</span>':''}</b><small class="mono">${t.kcal} kcal · ${t.protein} g</small></span><ul>${m.foods.map(f=>`<li><span>${esc(f.food)}</span><span>${esc(f.portion)}</span></li>`).join('')}</ul></span></button>`}).join('')||'<p class="hint">Nothing planned for this day.</p>'}</div>
+  ${mealXList(c,date,'client')}${date<=today()&&day.meals.length?'<button class="linkbtn mxlink" data-act="mx-open">+ Ate something that wasn\'t on the plan</button>':''}`;
 }
 function clientProgress(c){
   if(ui.olEx)return overloadDetail(c,ui.olEx);
-  const ws=c.weights.slice().sort((a,b)=>a.date<b.date?-1:1),last=ws[ws.length-1],due=!last||daysBetween(last.date,today())>=7,T=today(),todays=c.photos.filter(p=>p.date===T);
+  const ws=c.weights.slice().sort((a,b)=>a.date<b.date?-1:1);
+  if(newReply(c)){c.ciSeen=Date.now();save()}
   const lifts=planExIds(c).map(id=>({id,h:exHistory(c,id,false),r:planRow(c,id)})).filter(x=>x.h.length),shown=ui.liftsAll?lifts:lifts.slice(0,6);
   return `<header class="hd"><h1>Progress</h1></header>
-  <form class="card hud" data-form="weight"><div class="section-hd"><h3>Weekly check-in</h3>${due?'<span class="pill acc">Due</span>':`<span class="pill ok">Logged ${rel(last.date).toLowerCase()}</span>`}</div>
-  <div class="checkin"><label>Date<input id="wi-date" type="date" name="date" value="${T}" max="${T}"></label><label>Weight (kg)<input id="wi-kg" name="kg" inputmode="decimal" required placeholder="${last?last.kg:'75.0'}"></label><button class="btn primary">Save</button></div>
-  <button type="button" class="linkbtn" data-act="toggle-meas" aria-expanded="${!!ui.showMeas}">${ui.showMeas?'Hide measurements':'+ Add body measurements (optional)'}</button>
-  ${ui.showMeas?`<div class="measgrid">${MEAS.map(([k,l])=>`<label>${l} (cm)<input id="m-${k}" name="m_${k}" inputmode="decimal" placeholder="${(()=>{const v=(c.measures||[]).filter(m=>hasW(m[k])).slice(-1)[0];return v?kg(v[k]):'cm'})()}"></label>`).join('')}</div><p class="hint">Measure first thing in the morning, at the same spot each time: waist at the belly button, hips at the widest point.</p>`:''}</form>
+  ${checkinCard(c)}
+  ${(c.formChecks||[]).length?`<section class="rsec"><h2>Form checks</h2>${(c.formChecks||[]).slice().sort((a,b)=>b.ts-a.ts).slice(0,3).map(fc=>fcCard(c,fc,'client')).join('')}</section>`:''}
   <section class="rsec"><h2>Body weight</h2>${ws.length?weightChart(ws):'<p class="hint">Log your first weigh-in above.</p>'}</section>
   <section class="rsec"><h2>Body measurements</h2>${measurementsView(c,'client')}</section>
   <section class="rsec"><h2>Your lifts</h2><p class="hint">The weight your coach set for each exercise, and how you did last time compared with the time before.</p>
   <ul class="olist">${shown.map(x=>{const st=overload(x.h);return `<li><button class="olrow" data-act="ol-ex" data-id="${x.id}">${thumb(exById(x.id))}<span class="olname"><span class="oltop"><b>${esc(exById(x.id).name)}</b>${statusPill(st)}</span><small>${x.r&&hasW(x.r.weight)?`${repsText(x.r.sets,x.r.reps)} · ${weightText(x.r,today(),c.plan)}`:`${x.r?repsText(x.r.sets,x.r.reps)+' · ':''}bodyweight`}</small></span></button></li>`}).join('')||'<li class="hint">Log a workout to see your lifts here.</li>'}</ul>
   ${lifts.length>6?`<button class="btn" data-act="lifts-all">${ui.liftsAll?'Show fewer':`Show all ${lifts.length} lifts`}</button>`:''}</section>
-  <div class="card hud"><h3>Progress photos</h3><p class="hint">Same spot, same light. Only you and ${esc(first(coach(c.coachId).name))} can see them.</p>
-  <div class="slots">${['front','side','back'].map(a=>{const p=todays.find(x=>x.angle===a);return `<label class="slot" for="ph-${a}">${p?`<img src="${p.src}" alt="">`:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>'}<span>${p?'Replace ':'Add '}${a}</span><input type="file" accept="image/*" id="ph-${a}" data-photo="${a}"></label>`}).join('')}</div></div>
-  ${c.photos.some(p=>p.date!==T)?`<section class="rsec"><h2>Earlier photos</h2>${photosHistory(c.photos.filter(p=>p.date!==T))}</section>`:''}`;
+  ${c.photos.length?`<section class="rsec"><h2>Progress photos</h2>${photosHistory(c.photos)}</section>`:''}`;
 }

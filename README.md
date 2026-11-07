@@ -12,8 +12,9 @@ This is a front-end prototype. It runs on sample data saved in your browser, and
 
 ## What's in it
 
-- **Coach:** clients, invites, routines with weekly weight increases, meal plans, templates, reports and a calendar of what each client did
-- **Client:** today's workout, set logging with rest timer, energy check, meals, progress photos, body weight and measurements, chat with the coach
+- **Coach:** clients, invites, routines with weekly weight increases, meal plans, templates, reports and a calendar of what each client did. A single date can be changed on its own, or the change applied to that weekday from then on. Weekly check-ins and form-check videos to reply to
+- **Client:** today's workout, set logging with rest timer, energy check, meals (including logging something off the plan), a weekly check-in, form-check videos, progress photos, body weight and measurements, chat with the coach
+- **Install:** can be added to a phone's home screen
 - **Themes:** lime (default), pink, ocean, violet, ember, blush and a light theme(might remove this feature)
 
 ## Files
@@ -23,4 +24,5 @@ This is a front-end prototype. It runs on sample data saved in your browser, and
 - `anim.js`: exercise demo animations
 - `ui-*.js`: screens
 - `app.js`: actions and navigation
-- `assets/`: logo
+- `manifest.webmanifest`, `sw.js`: home screen install and offline support
+- `assets/`: logo and app icons

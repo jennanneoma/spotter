@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="icon" href="assets/spotter-logo-icon.svg">
 <title>Spotter Coaching</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#050806">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Spotter">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
@@ -259,7 +264,9 @@ input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--a
 .rc-stats b{font-size:1.2rem;color:var(--accent)}
 .copyto-inline{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .copyto-inline .chip{padding:4px 8px}
-.day-hd .dh-name{flex:1;display:flex;flex-direction:column;gap:6px;min-width:0}
+.day-hd .dh-name{flex:1;display:flex;flex-direction:row;align-items:center;gap:10px;min-width:0}
+.day-hd .dh-name b{flex:none;white-space:nowrap}
+.day-hd .dayname{min-width:0;width:auto}
 .day-hd .dh-name small{color:var(--muted)}
 .daynum{width:44px!important}
 .thumb{width:34px;height:34px;flex:none;display:block;border-radius:3px;overflow:hidden;background:radial-gradient(ellipse at 50% 85%,rgba(var(--accent-rgb),.08),transparent 70%),var(--sunk);border:1px solid var(--line)}
@@ -558,6 +565,81 @@ button.gc-col:hover .gc-stack i.done{box-shadow:0 0 8px rgba(var(--accent-rgb),.
 .gc-x.on b{color:var(--ink);font-weight:700}
 .gc .legend{flex-wrap:wrap;padding-top:0;row-gap:6px}
 .gc-tap{margin-left:auto}
+/* one date only */
+.datestrip{display:flex;flex-direction:column;gap:8px}
+.ds-hd{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.ds-hd .eyebrow{margin:0}
+.ds-nav{display:flex;align-items:center;gap:2px}
+.ds-nav .mono{font-size:.72rem;color:var(--muted);min-width:12ch;text-align:center}
+.ds-nav .icon-btn{font-size:1.05rem;padding:2px 8px;color:var(--accent)}
+.ds-nav .icon-btn[disabled]{opacity:.25}
+.ed-hd{display:flex;flex-direction:column;gap:6px}
+.ed-hd p{margin:0}
+.adder-row{display:flex;gap:6px}
+.adder-row input{flex:1;min-width:0}
+.addbtn{flex:none;width:44px;border:1px solid var(--accent-dim);background:var(--accent-soft);color:var(--accent);border-radius:2px;font-size:1.35rem;line-height:1;display:grid;place-items:center}
+.addbtn:hover{background:var(--accent);color:var(--on-accent)}
+.day.rest .day-tools{padding-top:4px}
+.day-tools>.icon-btn{padding-left:0}
+.scopebox{gap:8px}
+.wchip[disabled]{opacity:.32;cursor:default}
+.wchip.edited{border-color:var(--accent)}
+.wchip.edited i{color:var(--accent)}
+.calcell.edited{border-style:dashed;border-color:var(--accent-dim)}
+.callegend i.ed{display:inline-block;width:11px;height:11px;border:1px dashed var(--accent);border-radius:3px}
+.calchange{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+/* weekly check-in */
+.ci{display:flex;flex-direction:column;gap:16px}
+.ci-kg{max-width:220px}
+.ci-more{display:flex;gap:20px}
+.ci-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0}
+.ci-facts div{background:var(--sunk);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;min-width:0}
+.ci-facts dt{font-size:.64rem;color:var(--muted);font-family:var(--mono);text-transform:uppercase;letter-spacing:.12em}
+.ci-facts dd{margin:3px 0 0;font-size:1.1rem;font-weight:700;white-space:nowrap}
+.ci-facts dd small{font-size:.7rem;color:var(--muted);font-weight:500}
+.ci-note{font-style:italic;font-size:.92rem;color:var(--ink);border-left:2px solid var(--line2);padding-left:12px;margin:0}
+.cilist{display:flex;flex-direction:column;gap:10px}
+.cicard,.fccard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px}
+.cicard.new,.fccard.new{border-color:var(--accent-dim)}
+.cicard h3,.fccard h3{margin:0}
+.cirow{display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 16px;text-align:left;color:var(--ink)}
+.cirow>span:first-child{display:flex;flex-direction:column;line-height:1.3}
+.cirow b{font-size:.9rem;font-weight:600}
+.cirow small,.cirow .mono{font-size:.74rem;color:var(--muted)}
+.ci-pics{display:flex;gap:6px}
+.ci-pics img{width:60px;height:80px;object-fit:cover;border-radius:4px;border:1px solid var(--line)}
+.replyform{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.replyform textarea{width:100%}
+.nudge{border-style:solid;border-color:var(--accent-dim);background:var(--accent-soft)}
+.nudge b{color:var(--ink);font-weight:600}
+/* form checks */
+.fccard{flex-direction:row;align-items:flex-start;gap:14px}
+.fc-body{display:flex;flex-direction:column;gap:8px;min-width:0;flex:1}
+.fcvid{position:relative;flex:none;width:92px;aspect-ratio:3/4;background:var(--sunk);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.fcvid video,.fcvid canvas{width:100%;height:100%;object-fit:cover;display:block}
+.fcvid small{position:absolute;left:4px;right:4px;bottom:4px;font-size:.56rem;font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;text-align:center;color:var(--muted);background:color-mix(in srgb,var(--surface) 85%,transparent);border-radius:2px;padding:2px}
+.fcvid .fcmiss{display:none}
+.fcvid.missing video{display:none}
+.fcvid.missing .fcmiss{display:block;top:50%;bottom:auto;transform:translateY(-50%);text-transform:none;letter-spacing:0;font-size:.62rem}
+.fcmini{display:flex;gap:14px;align-items:flex-start}
+.fcmini .fc-body b{font-size:.9rem;font-weight:600}
+.exactions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.exactions .swapbtn{display:inline-flex;flex-direction:row;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+/* meals that weren't on the plan */
+.mxlist{display:flex;flex-direction:column;gap:10px;border:1px dashed var(--line2);border-radius:var(--r);padding:12px 14px}
+.mxitem{display:flex;gap:12px;align-items:center}
+.mxitem>span{flex:1;display:flex;flex-direction:column;line-height:1.35;min-width:0}
+.mxitem b{font-weight:500;font-size:.92rem}
+.mxitem small{font-size:.76rem;color:var(--muted)}
+.mxitem img{width:44px;height:44px;object-fit:cover;border-radius:4px;flex:none}
+.mxlink{align-self:center}
+.mxpick{display:flex;flex-direction:column;gap:8px}
+.mxphoto{display:flex!important;align-items:center;justify-content:center;border:1.5px dashed var(--line2);border-radius:var(--r);min-height:60px;color:var(--muted);cursor:pointer;overflow:hidden}
+.mxphoto img{max-height:180px;width:100%;object-fit:cover}
+/* add to home screen */
+.steps{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:12px}
+.steps li{display:flex;flex-direction:column;gap:2px;border-left:2px solid var(--accent-dim);padding-left:12px}
+.steps span{font-size:.88rem;color:var(--muted)}
 .tok{font-style:normal;width:14px;height:14px;display:inline-grid;place-items:center;border-radius:3px;font-size:.58rem;font-weight:700;box-sizing:border-box}
 i.done{background:var(--accent);color:var(--on-accent)}
 i.miss{background:var(--bad-soft);color:var(--bad);border:1px solid var(--bad)}
@@ -752,8 +834,6 @@ i.next{border:1px solid var(--line2)}
 @media (max-width:400px){h1{font-size:2.1rem}.cstats{grid-template-columns:1fr 1fr}.cstats div:last-child{grid-column:span 2}.lib{grid-template-columns:1fr}.ex-fields{grid-template-columns:1fr 1fr}.foodrow{grid-template-columns:1fr 1fr auto}.foodrow input:nth-of-type(3),.foodrow input:nth-of-type(4){grid-row:2}.fhead{display:none}.target{grid-auto-flow:row;grid-template-columns:1fr 1fr}}
 @media (prefers-reduced-motion:reduce){.scan,.blink{animation:none}}
 </style>
-</head>
-<body>
 
 <div id="demo"></div>
 <div id="app"></div>
@@ -771,6 +851,5 @@ i.next{border:1px solid var(--line2)}
 <script src="ui-extras.js"></script>
 <script src="ui-templates.js"></script>
 <script src="ui-calendar.js"></script>
+<script src="ui-checkins.js"></script>
 <script src="app.js"></script>
-</body>
-</html>

@@ -257,7 +257,10 @@ function notifications(){
       const nt=hasNotes(l)&&pref(me,'nNotes');
       if(pref(me,'nWorkouts'))out.push({ts:l.finishedAt,text:`${c.name} finished ${l.dayName}${nt?' and left you a note':''}.${pb?` ${pb} new personal best${pb>1?'s':''}.`:''}`,id:c.id,tab:'workouts'});
       else if(nt)out.push({ts:l.finishedAt,text:`${c.name} left you a note on ${l.dayName}.`,id:c.id,tab:'workouts'})}
-    if(pref(me,'nNotes'))for(const s of c.swapFeed||[])if(s.synced!==false)out.push({ts:s.ts,text:`${c.name} swapped ${exById(s.from).name} for ${exById(s.to).name}.`,id:c.id,tab:'workouts'});
+    if(pref(me,'nNotes')){for(const s of c.swapFeed||[])if(s.synced!==false)out.push({ts:s.ts,text:`${c.name} swapped ${exById(s.from).name} for ${exById(s.to).name}.`,id:c.id,tab:'workouts'});
+      for(const x of visCi(c))if(x.ts>=since)out.push({ts:x.ts,text:`${c.name} sent their weekly check-in.`,id:c.id,tab:'progress'});
+      for(const x of visFc(c))if(x.ts>=since)out.push({ts:x.ts,text:`${c.name} sent a form check on ${exById(x.exId).name}.`,id:c.id,tab:'progress'});
+      for(const d in c.mealLog||{})for(const x of c.mealLog[d])if(x.synced!==false&&x.ts>=since)out.push({ts:x.ts,text:`${c.name} logged a meal that wasn't on the plan.`,id:c.id,tab:'meals',mealDay:d>=mondayOf(today())?weekIdx(d):null})}
     const m=c.messages.filter(x=>x.from==='client'&&x.synced!==false).slice(-1)[0];if(m&&pref(me,'nMsgs'))out.push({ts:m.ts,text:`${c.name} sent you a message.`,id:c.id,tab:'chat'});
     const r=c.readiness[today()];if(r&&r.synced!==false&&readyScore(r)<55&&pref(me,'nEnergy'))out.push({ts:new Date(today()+'T06:00').getTime(),text:`${c.name} has low energy today (${readyScore(r)}/100).`,id:c.id,tab:'workouts'});
   }
@@ -289,11 +292,13 @@ function settingsView(){
   if(coachSide)return head+`<form class="card hud" data-form="coach-profile"><h3>Profile</h3><label class="logodrop" for="set-logo">${o.logo?`<img src="${o.logo}" alt="Your logo">`:`<span class="mono">${initials(o.business||o.name)}</span>`}<span>${o.logo?'Change logo':'Add a logo'}</span><input type="file" id="set-logo" accept="image/*" data-setlogo></label>
     <div class="row2"><label>Your name<input id="set-name" name="name" value="${esc(o.name)}" required maxlength="40"></label><label>Business name<input id="set-biz" name="business" value="${esc(o.business||'')}" maxlength="40"></label></div><button class="btn">Save profile</button></form>`
     +group('Appearance',link('theme-open','Theme',themeName))
+    +group('App',link('install-open','Add to home screen',isInstalled()?'Installed':''))
     +group('Clients',sel('missAfter','Flag a client in red after','Days without a workout, once they have also missed a planned one.',[[2,'2 days'],[3,'3 days'],[5,'5 days'],[7,'7 days']])+tog('showSummary','Weekly summary on Clients page','')+sel('defaultRest','Default rest for new exercises','You can still change it on each exercise.',[[60,'1:00'],[90,'1:30'],[120,'2:00'],[180,'3:00']]))
-    +group('Notifications',tog('nWorkouts','Finished workouts','')+tog('nNotes','Client notes and exercise swaps','')+tog('nMsgs','New messages','')+tog('nEnergy','Low energy days','')+tog('nJoins','Accepted invites',''));
+    +group('Notifications',tog('nWorkouts','Finished workouts','')+tog('nNotes','Check-ins, notes and swaps','Weekly check-ins, form checks, workout notes, swaps and off-plan meals.')+tog('nMsgs','New messages','')+tog('nEnergy','Low energy days','')+tog('nJoins','Accepted invites',''));
   const r=o.reminder||{on:false,time:'07:00'};
   return head+group('Profile',link('edit-myname','Your name',myName(o)))
     +group('Appearance',link('theme-open','Theme',themeName))
+    +group('App',link('install-open','Add to home screen',isInstalled()?'Installed':''))
     +group('Workouts',link('rem-open','Workout reminders',r.on?fmt12(r.time):'Off')+tog('autoTimer','Start rest timer automatically','Starts after you confirm a set.')+tog('extraRest','Longer rests on tired days','Adds 30 to 60 seconds when your energy check is low.')+tog('vibrate','Vibrate when rest ends','')+tog('energyAsk','Ask how I feel before training','The daily energy check.'))
     +group('Notifications',tog('nRoutine','Routine changes','')+tog('nMeals','Meal plan changes','')+tog('nMsgs','New messages',''));
 }

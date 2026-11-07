@@ -84,13 +84,13 @@ function plates(total,bar=20){
 /* ---------- sample data ---------- */
 function seed(){
   const T=today();
-  const S={v:13,online:true,seededOn:T,coaches:[{id:'co1',name:'Immanuel',business:'Immanuel Fitness',logo:null,onboarded:true,notifRead:Date.now()-3*864e5},{id:'co2',name:'Dev Patel',business:'Dev Patel Coaching',logo:null,onboarded:true,notifRead:Date.now()-3*864e5},{id:'co3',name:'New coach',business:'',logo:null,onboarded:false}],
+  const S={v:14,online:true,seededOn:T,coaches:[{id:'co1',name:'Immanuel',business:'Immanuel Fitness',logo:null,onboarded:true,notifRead:Date.now()-3*864e5},{id:'co2',name:'Dev Patel',business:'Dev Patel Coaching',logo:null,onboarded:true,notifRead:Date.now()-3*864e5},{id:'co3',name:'New coach',business:'',logo:null,onboarded:false}],
     exercises:EX.map(([name,group,pattern,load],i)=>({id:'e'+i,name,group,pattern,load:load||null})),templates:[],clients:[]};
   const ex=n=>S.exercises.find(e=>e.name===n).id,exById2=id=>(S.exercises.find(e=>e.id===id)||{}).name;
   const row=(n,sets,reps,rest,weight='',prog=0,note='')=>({id:uid(),exId:ex(n),sets,reps,rest,weight,prog:{type:prog?"earned":"none",step:prog||2.5,every:1},note});
   const day=(name,rows)=>({id:uid(),name:cleanTitle(name),rest:false,exercises:rows});
   const rest=()=>({id:uid(),name:'',rest:true,exercises:[]});
-  const mk=o=>({id:uid(),logs:[],weights:[],photos:[],messages:[],notes:[],mealTicks:{},meals:null,plan:null,session:null,readiness:{},progressions:[],planHistory:[],swaps:{},swapFeed:[],measures:[],reminder:{on:false,time:'07:00'},coachRead:0,notesSeen:0,status:'active',...o});
+  const mk=o=>({id:uid(),logs:[],weights:[],photos:[],messages:[],notes:[],mealTicks:{},meals:null,plan:null,session:null,readiness:{},progressions:[],planHistory:[],swaps:{},swapFeed:[],measures:[],checkins:[],formChecks:[],mealLog:{},dayEdits:{},reminder:{on:false,time:'07:00'},coachRead:0,notesSeen:0,status:'active',...o});
 
   const sam=mk({id:'cl1',coachId:'co1',name:"Client 1",goal:'Lose fat, keep strength'});
   sam.plan={id:uid(),name:'Push, pull, legs',startDate:addDays(T,-29),days:[
@@ -119,6 +119,7 @@ function seed(){
   sam.messages=[{from:'coach',text:'Strong squats on Friday. Your bench target went up to '+kg(sam.plan.days[0].exercises[0].weight)+' kg.',ts:Date.now()-2*864e5},{from:'client',text:'Felt good. Overhead press is still stuck though.',ts:Date.now()-2*864e5+3600e3},{from:'coach',text:"I see it on your overload chart. We'll fix it, try paused reps this week.",ts:Date.now()-864e5}];
   sam.notes=[{id:uid(),text:'Immanuel changed your routine. Friday now ends with jump rope.',go:'today',ts:Date.now()-864e5},{id:uid(),text:'Immanuel edited your meal plan.',go:'meals',ts:Date.now()-3*864e5}];
   sam.notifRead=Date.now()-2*864e5;
+  sam.ciSeen=Date.now();
   sam.coachRead=Date.now();
   sam.reminder={on:true,time:'07:00'};
   { // a recent workout with notes for the coach and one swapped exercise
@@ -134,6 +135,18 @@ function seed(){
     for(let i=3;i>=0;i--){const k=3-i;sam.measures.push({id:uid(),date:addDays(m0,-14*i),waist:+(base.waist-0.8*k).toFixed(1),hips:+(base.hips-0.5*k).toFixed(1),chest:+(base.chest-0.3*k).toFixed(1),arm:+(base.arm+0.2*k).toFixed(1),thigh:+(base.thigh-0.2*k).toFixed(1),synced:true})}
   }
 
+  { // weekly check-ins (the last two answered), form checks, an off-plan lunch and one changed day
+    const mon=mondayOf(T),wAt=d=>{const w=sam.weights.filter(x=>x.date<=d).slice(-1)[0];return w?w.kg:null},at=(d,h)=>new Date(d+'T'+h).getTime();
+    sam.checkins=[[-14,3,3,'Settling in. Legs were sore for days after the first squat session.',"That soreness fades after week two. Keep walking on rest days."],
+      [-7,4,2,'Good week. Squats felt strong, sleep was a bit off midweek.',"Great week. Keep the bedtime routine going and we'll push squats again."]].map(([o,sl,st,note,rep])=>{const d=addDays(mon,o+6);return{id:uid(),week:addDays(mon,o),date:d,kg:wAt(d),sleep:sl,stress:st,note,ts:at(d,'19:30'),synced:true,reply:{text:rep,ts:at(d,'21:05')}}});
+    const lastOf=n=>visLogs(sam).filter(l=>l.entries.some(e=>e.exId===ex(n))).slice(-1)[0];
+    const sq=lastOf('Back Squat'),op=lastOf('Overhead Press');
+    if(sq)sam.formChecks.push({id:uid(),date:sq.date,exId:ex('Back Squat'),note:'Is my depth okay on the last rep?',ts:sq.finishedAt-600e3,synced:true,sample:true,reply:{text:'Depth is good. Keep your chest up as you drive out of the bottom.',ts:sq.finishedAt+5400e3}});
+    if(op)sam.formChecks.push({id:uid(),date:op.date,exId:ex('Overhead Press'),note:'Still stuck on this one. Is my bar path off?',ts:op.finishedAt-900e3,synced:true,sample:true,reply:null});
+    const lunch=sam.meals.days[weekIdx(T)].meals[1];if(lunch)sam.mealLog[T]=[{id:uid(),instead:lunch.id,text:'Chicken burrito bowl from the canteen',photo:null,ts:Date.now()-2*36e5,synced:true}];
+    for(let i=2;i<10;i++){const d=addDays(T,i),inf=dayAt(sam,d);if(inf.day&&!inf.day.rest&&inf.day.exercises.length>3){const day=clone(inf.day);day.name=day.name+', lighter';day.exercises=day.exercises.slice(0,-1);sam.dayEdits[d]=day;break}}
+  }
+
   const pri=mk({id:'cl2',coachId:'co1',name:"Jennifer",goal:'Build muscle, first year lifting'});
   const upper=day('Upper body',[row('Dumbbell Bench Press',3,'10',90,12,2),row('One-Arm Dumbbell Row',3,'10',75,14,2),row('Seated Dumbbell Shoulder Press',3,'10',75,8,1),row('Lat Pulldown',3,'10',75,30,2.5),row('Dead Bug',3,'8',45,'')]);
   const legs=day('Legs',[row('Goblet Squat',3,'10',90,16,2,'Elbows inside your knees at the bottom.'),row('Leg Press',3,'12',90,80,10),row('Walking Lunge',2,'12',60,8,2),row('Glute Bridge',3,'12',60,30,5),row('Plank',3,'30',45,'',0,'Hold for 30 seconds.')]);
@@ -144,6 +157,7 @@ function seed(){
   setProg(pri,'Glute Bridge',{type:'weekly',step:5},25);
   setProg(pri,'Leg Press',{type:'weekly',step:10,every:2});
   pri.messages=[{from:'coach',text:"Hi Jennifer, how's the week going?",ts:Date.now()-3*864e5}];
+  {const w=pri.weights.slice(-1)[0];pri.checkins=[{id:uid(),week:mondayOf(T),date:T,kg:w?w.kg:null,sleep:2,stress:4,note:"Exams this week, so I couldn't make it to the gym. Back on it Monday.",ts:Date.now()-3*36e5,synced:true,reply:null}]}
 
   const jor=mk({id:'cl3',coachId:'co1',name:"Client 3",goal:'Run a half marathon in March'});
   jor.weights=[{id:uid(),date:addDays(T,-2),kg:77.2,synced:true}];
@@ -232,13 +246,14 @@ function planAt(c,date){
   }
   return p;
 }
-function dayAt(c,date){
+function dayAt(c,date,raw){
   const p=planAt(c,date);
   if(!p){if(c.plan&&c.plan.activeFrom&&date<c.plan.activeFrom)return{notStarted:true,start:c.plan.activeFrom};return{none:true}}
   if(!p.days.length)return{none:true};
   const n=daysBetween(p.startDate,date);
   if(n<0)return{notStarted:true,start:p.startDate};
-  const idx=p.days.length===7?weekIdx(date):n%p.days.length;return{day:p.days[idx],idx,plan:p};
+  const idx=p.days.length===7?weekIdx(date):n%p.days.length,ed=!raw&&c.dayEdits&&c.dayEdits[date];
+  return ed?{day:ed,idx,plan:p,edited:true}:{day:p.days[idx],idx,plan:p};
 }
 function progStart(c){
   const ds=[c.plan&&c.plan.startDate,...(c.planHistory||[]).map(h=>h.plan.startDate),...c.logs.map(l=>l.date)].filter(Boolean).sort();
@@ -315,7 +330,8 @@ function adherence(c){
   return want?Math.round(got/want*100):null;
 }
 function pendingCount(c){
-  let n=[...c.logs,...c.weights,...c.photos,...c.messages,...c.progressions,...(c.swapFeed||[]),...(c.measures||[])].filter(x=>x.synced===false).length;
+  let n=[...c.logs,...c.weights,...c.photos,...c.messages,...c.progressions,...(c.swapFeed||[]),...(c.measures||[]),...(c.checkins||[]),...(c.formChecks||[])].filter(x=>x.synced===false).length;
+  for(const d in c.mealLog||{})n+=c.mealLog[d].filter(x=>x.synced===false).length;
   for(const d in c.mealTicks)for(const m in c.mealTicks[d])if(c.mealTicks[d][m].synced===false)n++;
   for(const d in c.readiness)if(c.readiness[d].synced===false)n++;
   return n;
@@ -323,7 +339,8 @@ function pendingCount(c){
 function syncAll(){
   let n=0;
   for(const c of S.clients){n+=pendingCount(c);
-    [...c.logs,...c.weights,...c.photos,...c.messages,...c.progressions,...(c.swapFeed||[]),...(c.measures||[])].forEach(x=>x.synced=true);
+    [...c.logs,...c.weights,...c.photos,...c.messages,...c.progressions,...(c.swapFeed||[]),...(c.measures||[]),...(c.checkins||[]),...(c.formChecks||[])].forEach(x=>x.synced=true);
+    for(const d in c.mealLog||{})c.mealLog[d].forEach(x=>x.synced=true);
     for(const d in c.mealTicks)for(const m in c.mealTicks[d])c.mealTicks[d][m].synced=true;
     for(const d in c.readiness)c.readiness[d].synced=true;}
   return n;
