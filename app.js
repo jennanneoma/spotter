@@ -357,7 +357,7 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('input',e=>{
   const t=e.target,ds=t.dataset;
-  if(ds.gsearch!==undefined){ui.sq=t.value;$('#gs-results').innerHTML=searchResults(t.value);return}
+  if(ds.gsearch!==undefined){ui.sq=t.value;$('#gs-results').innerHTML=appSearchResults(t.value);return}
   if(ds.pf){curDraft()[ds.pf]=t.value;const h=$('#cycle-hint');if(h)h.textContent=cycleHint(curDraft());return}
   if(ds.df){findDay(ds.day)[ds.df]=t.value;return}
   if(ds.rf){const r=findDay(ds.day).exercises.find(x=>x.id===ds.row),f=ds.rf;
@@ -373,7 +373,7 @@ document.addEventListener('input',e=>{
   if(ds.xnote){const c=client(ui.user.id);if(c.session){c.session.notes=c.session.notes||{};c.session.notes[ds.xnote]=t.value;save()}return}
   if(ds.fnote!==undefined){if(ui.finishing)ui.finishing.note=t.value;return}
   if(ds.rem==='time'){const c=client(ui.user.id);c.reminder={...(c.reminder||{on:true}),time:t.value||'07:00'};save();return}
-  if(ds.search){$('#r-'+ds.search).innerHTML=searchResults(ds.search,t.value);return}
+  if(ds.search){$('#r-'+ds.search).innerHTML=exerciseSearchResults(ds.search,t.value);return}
   if(ds.ci){ui.ci=ui.ci||{};ui.ci[ds.ci]=t.value;return}
   if(ds.mx){if(ui.mealX)ui.mealX[ds.mx]=t.value;return}
   if(ds.fcnote){const x=(client(ui.user.id).formChecks||[]).find(y=>y.id===ds.fcnote);if(x){x.note=t.value;save()}return}

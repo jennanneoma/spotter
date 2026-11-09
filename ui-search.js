@@ -131,7 +131,7 @@ function searchGroups(q){
   return groups;
 }
 
-function searchResults(q){
+function appSearchResults(q){
   const groups=searchGroups(q);
   if(!groups.length)return `<p class="gs-empty">Nothing matches “${esc(q.trim())}”.</p>`;
   const icon=r=>r.ic==='av'?`<span class="avatar">${r.av}</span>`:r.ic==='ex'?thumb(r.ex):`<span class="gs-ic">${r.ic==='chat'?CHAT_ICON:GO_ICON}</span>`;
@@ -141,5 +141,5 @@ function searchResults(q){
 function searchSheet(){
   return `<div class="card hud sheetcard searchcard" role="dialog" aria-label="Search">
     <div class="gs-bar">${SEARCH_ICON}<input type="search" id="gs-q" data-gsearch placeholder="${ui.user.role==='coach'?'Search clients, exercises, settings…':'Search workouts, meals, settings…'}" value="${esc(ui.sq||'')}" autocomplete="off" aria-label="Search"><button class="icon-btn" data-act="close-sheet" aria-label="Close">✕</button></div>
-    <div class="gs-results" id="gs-results">${searchResults(ui.sq||'')}</div></div>`;
+    <div class="gs-results" id="gs-results">${appSearchResults(ui.sq||'')}</div></div>`;
 }

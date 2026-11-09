@@ -161,7 +161,7 @@ function progEditor(c,r,a){
     <p class="progline" id="pp-${r.id}" ${progSentence(r,plan)?'':'hidden'}>${progSentence(r,plan)}</p></div>`;
 }
 // results for the "search exercises or type a new one" box in the editor
-function searchResults(dayId,q){
+function exerciseSearchResults(dayId,q){
   q=q.trim();if(!q)return'';const ql=q.toLowerCase();
   const m=S.exercises.filter(e=>e.name.toLowerCase().includes(ql)||e.group.toLowerCase()===ql).sort((a,b)=>a.name.toLowerCase().indexOf(ql)-b.name.toLowerCase().indexOf(ql)).slice(0,6);
   const exact=S.exercises.some(e=>e.name.toLowerCase()===ql);
