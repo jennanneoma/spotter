@@ -1,4 +1,9 @@
-/* Spotter: state, rendering, actions */
+/* app.js: where it all comes together.
+   1. load the saved data (or make fresh sample data)
+   2. render(): draw the whole page from that data
+   3. ACT: a list of every button action, by name. A button with data-act="open-client" runs ACT['open-client']
+   4. listeners at the bottom that catch taps, typing and form sends, and call the right action
+   The pattern is always the same: change the data, then render() again. */
 const KEY='spotter-demo-v14';
 try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
 if(!S||S.v!==14||S.seededOn!==today())S=seed();
@@ -11,6 +16,7 @@ function renderDemo(){
   <button class="link" data-act="reset">Reset sample data</button>`;
   $('#who').value=`${ui.user.role}:${ui.user.id}`;
 }
+// draws the whole app again from the data. Simple, and fast enough for an app this size
 function render(){
   applyTheme();
   renderDemo();
@@ -20,8 +26,10 @@ function render(){
   if(ui.focus){const el=document.getElementById(ui.focus);if(el)el.focus();ui.focus=null}
   renderSheet();
 }
+// pop-ups ("sheets") sit on top of the page. Only one shows at a time
 function renderSheet(){
   const sh=$('#sheet');
+  if(ui.searchSheet){if(!$('#gs-q')){sh.innerHTML=searchSheet();const q=$('#gs-q');if(q)q.focus()}return}
   if(ui.themeSheet){sh.innerHTML=themeSheet();return}
   if(ui.installSheet){sh.innerHTML=installSheet();return}
   if(ui.mealX&&ui.user.role==='client'){sh.innerHTML=mxSheet(client(ui.user.id));return}
@@ -40,10 +48,11 @@ function renderSheet(){
 }
 /* low energy today: longer breaks so every rep can still be finished */
 function restBonus(c){const r=c.readiness[today()];if(!r||!pref(c,'extraRest'))return 0;const sc=readyScore(r);return sc<55?60:sc<75?30:0}
-function closeSheets(){ui.preview=null;ui.finishing=null;ui.swapRow=null;ui.remSheet=false;ui.nameSheet=false;ui.themeSheet=false;ui.notifSheet=false;ui.installSheet=false;ui.mealX=null;render()}
+function closeSheets(){ui.searchSheet=false;ui.sq='';ui.preview=null;ui.finishing=null;ui.swapRow=null;ui.remSheet=false;ui.nameSheet=false;ui.themeSheet=false;ui.notifSheet=false;ui.installSheet=false;ui.mealX=null;render()}
 function newClient(o){return{id:uid(),logs:[],weights:[],photos:[],messages:[],notes:[],mealTicks:{},meals:null,plan:null,session:null,readiness:{},progressions:[],planHistory:[],swaps:{},swapFeed:[],measures:[],checkins:[],formChecks:[],mealLog:{},dayEdits:{},reminder:{on:false,time:'07:00'},coachRead:0,notesSeen:0,status:'active',...o}}
 function shrinkImage(file,max,done){const img=new Image();img.onload=()=>{const k=Math.min(1,max/Math.max(img.width,img.height)),cv=document.createElement('canvas');cv.width=Math.round(img.width*k);cv.height=Math.round(img.height*k);cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);URL.revokeObjectURL(img.src);done(cv.toDataURL('image/png'))};img.onerror=()=>toast("That file couldn't be read as an image. Try a JPG or PNG.");img.src=URL.createObjectURL(file)}
 let toastT;
+// the little message that pops up at the bottom for a few seconds
 function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,3400)}
 
 /* rest timer + session clock */
@@ -62,7 +71,7 @@ function tickTimer(){
 }
 setInterval(tickTimer,250);
 
-/* PR celebration */
+/* the little celebration when someone sets a personal best (PR) */
 function confetti(){
   if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
   const cv=$('#fx'),ctx=cv.getContext('2d'),W=cv.width=innerWidth,H=cv.height=innerHeight,col=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
@@ -71,7 +80,9 @@ function confetti(){
   (function f(t){ctx.clearRect(0,0,W,H);ps.forEach(p=>{p.vy+=.45;p.x+=p.vx;p.y+=p.vy;p.r+=.2;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.r);ctx.fillStyle=p.c;ctx.fillRect(-p.s,-p.s/2,p.s*2,p.s);ctx.restore()});if(t-t0<1800)requestAnimationFrame(f);else{ctx.clearRect(0,0,W,H);cv.hidden=true}})(t0);
 }
 
-/* actions */
+/* ---------- actions ----------
+   Every button in the app has data-act="something". When it's tapped, ACT.something runs.
+   After it runs the page redraws, unless the action returns 'skip' (when it already updated the bit it needed). */
 const curDraft=()=>ui.drafts[ui.clientId];
 const findDay=id=>{const dd=ui.dayDraft;if(dd&&dd.day.id===id)return dd.day;return curDraft().days.find(d=>d.id===id)};
 // a weekly routine draft, or the one-date edit (which has no draft of its own)
@@ -91,6 +102,7 @@ const ACT={
   nav(el){if(el.dataset.v==='reports')ui.repClient=null;ui.view=el.dataset.v;ui.chooser=null;ui.preview=null;ui.olEx=null;ui.confirm=null;scrollTo(0,0)},
   'open-client'(el){ui.view='client';ui.clientId=el.dataset.id;ui.tab='workouts';ui.olEx=null;ui.mealDay=null;ui.confirm=null;scrollTo(0,0)},
   tab(el){ui.tab=el.dataset.v;ui.olEx=null},
+  'show-past'(el){ui.view='clients';ui.showPast=true;scrollTo(0,0)},
   'toggle-past'(){ui.showPast=!ui.showPast;ui.confirm=null},
   'ask-archive'(el){ui.confirm={id:el.dataset.id,kind:'archive'};scrollTo(0,0)},
   'ask-delete'(el){ui.confirm={id:el.dataset.id,kind:'delete'}},
@@ -152,6 +164,26 @@ const ACT={
     const day=clone(inf.day);day.exercises.forEach((r,k)=>{const r0=inf.day.exercises[k];if(progOf(r0).type==='weekly'&&hasW(r0.weight)){r.weight=setWeight(r0,0,d,inf.plan);r.since=mondayOf(d)}});
     ui.dayDraft={cid:c.id,date:d,day};ui.openDay=day.id;scrollTo(0,0)},
   'cal-change'(el){ui.view='client';ui.clientId=el.dataset.id;ui.tab='workouts';ui.olEx=null;ui.confirm=null;return ACT['day-edit'](el)},
+  // going back and searching (see ui-search.js)
+  back(el){
+    goBack(()=>{const fb=el.dataset.fb;if(fb&&ACT[fb])ACT[fb](el);else ACT.nav(el)});
+    // keep the browser's own history in step so its back button doesn't jump twice
+    if(pushedStates>0){pushedStates--;skipPop=true;try{history.back()}catch(e){skipPop=false}}
+  },
+  'search-open'(){ui.searchSheet=true;ui.sq='';renderSheet();return'skip'},
+  'gs-go'(el){
+    ui.searchSheet=false;ui.sq='';$('#sheet').innerHTML='';
+    ACT[el.dataset.to](el);
+    // some results need one more step, like opening a client on their Meals tab
+    for(const pair of (el.dataset.then||'').split(',').filter(Boolean)){const[k,v]=pair.split('=');ui[k]=v}
+  },
+  // saves everything this person can see as a .json file
+  'export-data'(){
+    const coachSide=ui.user.role==='coach',data=coachSide?{coach:coach(ui.user.id),clients:S.clients.filter(c=>c.coachId===ui.user.id),templates:S.templates.filter(t=>t.coachId===ui.user.id)}:{you:client(ui.user.id)};
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
+    a.download=`spotter-${coachSide?'backup':'my-data'}-${today()}.json`;document.body.appendChild(a);a.click();a.remove();
+    toast('Downloaded. Keep it somewhere safe.');return'skip'},
+  'recent-all'(){ui.recentAll=!ui.recentAll},
   'day-scope'(el){ui.dayDraft.all=el.dataset.v==='all'},
   'day-edit-cancel'(){ui.dayDraft=null;scrollTo(0,0)},
   'day-edit-save'(){const c=client(ui.clientId),{date,day}=ui.dayDraft,cp=clone(day);delete cp._ex;delete cp._name;
@@ -291,16 +323,22 @@ const ACT={
   'tick-meal'(el){const c=client(ui.user.id),T=today();c.mealTicks[T]=c.mealTicks[T]||{};if(c.mealTicks[T][el.dataset.meal])delete c.mealTicks[T][el.dataset.meal];else c.mealTicks[T][el.dataset.meal]={synced:S.online};save()},
   // demo bar
   online(el){const on=el.dataset.v==='1';if(on===S.online)return'skip';S.online=on;if(on){const n=syncAll();toast(n?`Back online. Synced ${n} change${n>1?'s':''}.`:'Back online.')}else toast("Client's phone is offline. Logging still works.");save()},
-  reset(){try{localStorage.removeItem(KEY)}catch(e){}S=seed();Object.assign(ui,{dayDraft:null,ci:null,mealX:null,drafts:{},mealDrafts:{},chooser:null,preview:null,confirm:null,olEx:null,finishing:null,ready:null,swapRow:null,remSheet:false,invite:null,ob:null,obStep:1,join:null});stopTimer();if(!(ui.user.role==='coach'?coach(ui.user.id):client(ui.user.id)))ui.user={role:'coach',id:'co1'};ui.view=ui.user.role==='coach'?'clients':'today';save();toast('Sample data reset.')},
+  reset(){try{localStorage.removeItem(KEY)}catch(e){}S=seed();ui.hist=[];Object.assign(ui,{dayDraft:null,ci:null,mealX:null,drafts:{},mealDrafts:{},chooser:null,preview:null,confirm:null,olEx:null,finishing:null,ready:null,swapRow:null,remSheet:false,invite:null,ob:null,obStep:1,join:null});stopTimer();if(!(ui.user.role==='coach'?coach(ui.user.id):client(ui.user.id)))ui.user={role:'coach',id:'co1'};ui.view=ui.user.role==='coach'?'clients':'today';save();toast('Sample data reset.')},
 };
+/* ---------- listening for taps, typing and forms ----------
+   One listener for the whole page. It finds the nearest data-act and runs that action. */
 document.addEventListener('click',e=>{
   if(e.target.id==='sheet'){closeSheets();return}
   const el=e.target.closest('[data-act]');if(!el)return;
   const fn=ACT[el.dataset.act];if(!fn)return;e.preventDefault();
-  if(fn(el,e)!=='skip')render();
+  const before=snapPage(); // remember where we were, for the back button
+  const r=fn(el,e);
+  if(el.dataset.act!=='back')trackPage(before);
+  if(r!=='skip')render();
 });
 document.addEventListener('input',e=>{
   const t=e.target,ds=t.dataset;
+  if(ds.gsearch!==undefined){ui.sq=t.value;$('#gs-results').innerHTML=searchResults(t.value);return}
   if(ds.pf){curDraft()[ds.pf]=t.value;const h=$('#cycle-hint');if(h)h.textContent=cycleHint(curDraft());return}
   if(ds.df){findDay(ds.day)[ds.df]=t.value;return}
   if(ds.rf){const r=findDay(ds.day).exercises.find(x=>x.id===ds.row),f=ds.rf;
@@ -328,8 +366,11 @@ document.addEventListener('input',e=>{
   if(ds.sf){const c=client(ui.user.id),r=dayAt(c,today()).day.exercises.find(x=>x.id===ds.row);getSets(c,r)[+ds.i][ds.sf]=t.value;save();return}
 });
 document.addEventListener('keydown',e=>{
+  // Ctrl+K or Cmd+K opens search, Enter picks the top result
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();ACT['search-open']();return}
+  if(e.key==='Enter'&&e.target.id==='gs-q'){e.preventDefault();const b=$('#gs-results .gs-row');if(b)b.click();return}
   if(e.key==='Enter'&&e.target.dataset&&e.target.dataset.search){e.preventDefault();const b=$('#r-'+e.target.dataset.search+' button');if(b)b.click()}
-  if(e.key==='Escape'&&(ui.preview||ui.finishing||ui.swapRow||ui.remSheet||ui.nameSheet||ui.themeSheet||ui.notifSheet||ui.installSheet||ui.mealX))closeSheets();
+  if(e.key==='Escape'&&(ui.searchSheet||ui.preview||ui.finishing||ui.swapRow||ui.remSheet||ui.nameSheet||ui.themeSheet||ui.notifSheet||ui.installSheet||ui.mealX))closeSheets();
 });
 function readVideo(file,done){
   if(file.size>3*1024*1024){toast('That video is over 3 MB. Trim it to a few seconds so it loads fast and works offline.');return}
@@ -337,7 +378,7 @@ function readVideo(file,done){
 }
 document.addEventListener('change',e=>{
   const t=e.target;
-  if(t.id==='who'){const[role,id]=t.value.split(':');ui.user={role,id};ui.view=role==='coach'?'clients':'today';Object.assign(ui,{chooser:null,preview:null,olEx:null,finishing:null,confirm:null,cMealDay:null,swapRow:null,remSheet:false,themeSheet:false,notifSheet:false,installSheet:false,mealX:null,ci:null,dayDraft:null,ciOpen:null,showMeas:false,showPhotos:false,invite:null,ob:null,obStep:1,join:null,repClient:null});stopTimer();render();scrollTo(0,0);return}
+  if(t.id==='who'){const[role,id]=t.value.split(':');ui.user={role,id};ui.hist=[];ui.view=role==='coach'?'clients':'today';Object.assign(ui,{chooser:null,preview:null,olEx:null,finishing:null,confirm:null,cMealDay:null,swapRow:null,remSheet:false,themeSheet:false,notifSheet:false,installSheet:false,mealX:null,ci:null,dayDraft:null,ciOpen:null,showMeas:false,showPhotos:false,invite:null,ob:null,obStep:1,join:null,repClient:null});stopTimer();render();scrollTo(0,0);return}
   if(t.dataset.pref){const o=notifOwner();o.prefs=o.prefs||{};o.prefs[t.dataset.pref]=t.type==='checkbox'?t.checked:+t.value;save();return}
   if(t.dataset.setlogo!==undefined&&t.files[0]){shrinkImage(t.files[0],200,src=>{coach(ui.user.id).logo=src;save();render();toast('Logo saved.')});return}
   if(t.dataset.pf==='startDate'){render();return}
@@ -359,6 +400,7 @@ document.addEventListener('change',e=>{
     img.src=URL.createObjectURL(t.files[0]);
   }
 });
+// forms (like sending a message or a check-in) all come through here, picked by data-form
 document.addEventListener('submit',e=>{
   const f=e.target,k=f.dataset.form;if(!k)return;e.preventDefault();const fd=new FormData(f);
   if(k==='add-client'){const name=fd.get('name').trim();if(!name)return;const c=newClient({coachId:ui.user.id,name,goal:fd.get('goal').trim(),status:'invited',inviteCode:newCode(),invitedAt:today()});S.clients.push(c);ui.invOpen=c.id;ui.view='invites';save();render();scrollTo(0,0);toast(`Invite ready for ${c.name}. Send them the link.`);return}

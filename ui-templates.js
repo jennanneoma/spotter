@@ -1,4 +1,5 @@
-/* Spotter: workout templates. Coaches build reusable Monday–Sunday routines here and start any client from one. */
+/* ui-templates.js: saved routines the coach can reuse.
+   Build a week once, then start any new client from it and just tweak their weights. */
 const TPL_CLIENT={id:'tpl',name:'your client',logs:[],plan:null,planHistory:[],readiness:{},weights:[],swapFeed:[]};
 const tplKey=id=>'tpl:'+(id||'new');
 const editingTemplate=()=>typeof ui.clientId==='string'&&ui.clientId.startsWith('tpl:')&&ui.drafts[ui.clientId];
@@ -10,7 +11,7 @@ function templatesView(co){
   const d=editingTemplate();if(d)return templateEditor(d);
   const list=S.templates.filter(x=>x.coachId===co.id);
   const clients=S.clients.filter(c=>c.coachId===co.id&&!c.archived);
-  return `<header class="hd"><h1>Templates</h1><p class="sub">Routines you can reuse. Build one once, then start any client from it and adjust the weights for them.</p></header>
+  return `<header class="hd"><h1>Templates</h1></header>
   <button class="btn primary big" data-act="tpl-new">+ Create a template</button>
   ${list.length?`<ul class="tpllist">${list.map(t=>{const sm=tplSummary(t),open=ui.tplOpen===t.id,using=ui.tplUse===t.id,del=ui.tplDel===t.id;
     const strip=`<span class="tplstrip" aria-label="Training days: ${sm.train.map(x=>WKL[x.i]).join(', ')}">${t.days.map((x,i)=>`<i class="${x.rest?'':'on'}" title="${WKL[i]}: ${esc(dayTitle(x))}">${WK[i].slice(0,1)}</i>`).join('')}</span>`;
@@ -25,10 +26,10 @@ function templatesView(co){
 function templateEditor(d){
   const t=d.days.filter(x=>!x.rest).length;
   return `<section class="editor"><button class="back" data-act="tpl-cancel">‹ Templates</button>
-  <div><p class="eyebrow">${d.tplId?'Edit template':'New template'}</p><h2>${esc(d.name||'Untitled template')}</h2><p class="hint">Set the days and exercises. Weights are optional here, since you'll usually set them for each client.</p></div>
+  <div><p class="eyebrow">${d.tplId?'Edit template':'New template'}</p><h2>${esc(d.name||'Untitled template')}</h2><p class="hint">Weights are optional here.</p></div>
   <div class="card hud"><label>Template name<input id="tpl-name" data-pf="name" value="${esc(d.name)}" placeholder="e.g. Beginner full body" maxlength="60"></label>
   <label>Who it's for (optional)<input id="tpl-desc" data-pf="desc" value="${esc(d.desc||'')}" placeholder="e.g. New lifters, 3 days a week, dumbbells only" maxlength="100"></label>
-  <p class="hint">${t} training day${t===1?'':'s'} a week, Monday to Sunday. Tap a day to open it.</p></div>
+  <p class="hint">${t} training day${t===1?'':'s'} a week, Monday to Sunday.</p></div>
   ${d.days.map((day,i)=>dayEditor(TPL_CLIENT,day,i)).join('')}
   <div class="savebar"><button class="btn ghost" data-act="tpl-cancel">Discard</button><button class="btn primary" data-act="tpl-save">Save template</button></div></section>`;
 }

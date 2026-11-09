@@ -1,7 +1,9 @@
-/* Spotter: client calendar. Each day shows its status at a glance; tap a day or a week for the detail. */
+/* ui-calendar.js: the month calendar in a client's report.
+   Each day gets a mark (done, missed, coming up). Tap a day or a week to see more. */
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 const monthOf=d=>d.slice(0,7);
 function shiftMonth(m,n){const[y,mo]=m.split('-').map(Number),x=new Date(y,mo-1+n,1);return iso(x).slice(0,7)}
+// what happened on one day: done, missed, rest, today or coming up
 function dayStatus(c,d){
   const T=today(),logs=visLogs(c).filter(l=>l.date===d),inf=dayAt(c,d),train=inf.day&&!inf.day.rest;
   if(logs.length)return{key:'done',logs,inf};
@@ -10,6 +12,7 @@ function dayStatus(c,d){
   return{key:inf.day?'rest':'none',logs,inf};
 }
 const CAL_LABEL={done:'Workout done',notlogged:'Not logged',today:'Planned for today',planned:'Planned',rest:'Rest day',before:'Before the program started',none:'Nothing planned'};
+// the month grid
 function calendarView(c){
   const T=today(),cal=ui.cal||(ui.cal={month:monthOf(T),day:T,week:null}),[y,m]=cal.month.split('-').map(Number);
   const firstD=cal.month+'-01',lastD=iso(new Date(y,m,0)),minM=monthOf(progStart(c)),maxM=shiftMonth(monthOf(T),1);
@@ -24,7 +27,7 @@ function calendarView(c){
   return `<div class="calcard"><div class="calhead"><button class="icon-btn" data-act="cal-month" data-v="-1" aria-label="Previous month" ${cal.month<=minM?'disabled':''}>‹</button><h3>${MONTHS[m-1]} ${y}</h3><button class="icon-btn" data-act="cal-month" data-v="1" aria-label="Next month" ${cal.month>=maxM?'disabled':''}>›</button></div>
     <div class="calrow caldow"><span>WK</span>${WK.map(w=>`<span>${w.slice(0,1)}</span>`).join('')}</div>${rows.join('')}
     <div class="callegend"><span><i class="ok">✓</i>Done</span><span><i class="bad">✕</i>Not logged</span><span><i>•</i>Planned</span>${Object.keys(c.dayEdits||{}).some(d=>monthOf(d)===cal.month)?'<span><i class="ed"></i>Changed day</span>':''}<span>Tap a week number for its summary</span></div></div>
-  ${cal.week?calWeekPanel(c,cal.week):cal.day?calDayPanel(c,cal.day):'<p class="hint">Tap a day to see what happened.</p>'}`;
+  ${cal.week?calWeekPanel(c,cal.week):cal.day?calDayPanel(c,cal.day):''}`;
 }
 function calWeekPanel(c,mon){
   const w=clientWeek(c,mon),bits=[`${w.done} of ${w.planned} workouts done`];

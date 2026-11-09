@@ -14,8 +14,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
 <style>
-/* Layout: phone-width column over a faint lime grid; lime corner brackets mark HUD panels.
-   Single dark look on purpose (brand: black + lime). */
+/* All the styles for the app live here.
+   The colours are "variables" in :root below (like --accent for lime). Themes just swap these values,
+   so every screen changes colour at once. The app is a phone-width column over a faint lime grid,
+   and the little lime corner marks on some cards are the "HUD" look. */
 :root{
   --bg:#050806; --surface:#0C120E; --sunk:#111913; --raise:#16201A; --ink:#E9F3E4; --muted:#7F8D7B; --line:#1B271C; --line2:#2B3B2A;
   --accent:#B8F24C; --accent-dim:#5E8A22; --accent-soft:rgba(var(--accent-rgb),.08); --accent-mid:rgba(var(--accent-rgb),.22); --on-accent:#081203;
@@ -50,13 +52,13 @@ p{margin:0}
 .bad-t{color:var(--bad);font-weight:600}.up-t{color:var(--accent)}
 .glowline{filter:drop-shadow(0 0 4px rgba(var(--accent-rgb),.55))}
 
-/* HUD corners */
+/* HUD corners: the small lime brackets on the corners of some cards */
 .hud{position:relative}
 .hud::before{content:"";position:absolute;inset:-1px;pointer-events:none;background:
   linear-gradient(var(--accent),var(--accent)) top left/8px 1px no-repeat,linear-gradient(var(--accent),var(--accent)) top left/1px 8px no-repeat,
   linear-gradient(var(--accent),var(--accent)) bottom right/8px 1px no-repeat,linear-gradient(var(--accent),var(--accent)) bottom right/1px 8px no-repeat;opacity:.55}
 
-/* demo bar */
+/* demo bar: the lime bar at the very top for switching between coach and client (demo only) */
 #demo{background:var(--accent);color:var(--on-accent);padding:8px 16px;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:center;font-size:.82rem;font-weight:600}
 #demo label,#demo .conn{display:flex;gap:6px;align-items:center;color:var(--on-accent)}
 #demo select{background:var(--on-accent);color:var(--ink);border:0;border-radius:2px;padding:4px 6px}
@@ -66,7 +68,7 @@ p{margin:0}
 #demo .link{background:none;border:0;color:var(--on-accent);text-decoration:underline;padding:0;font-weight:600}
 #demo .tag{font-family:var(--display);font-weight:800;letter-spacing:.3em;text-transform:uppercase}
 
-/* app column */
+/* app column: the main phone-width area, plus the bottom tab bar */
 #app{max-width:480px;margin:0 auto;min-height:calc(100vh - 44px);display:flex;flex-direction:column}
 @media (min-width:560px){#app{border-inline:1px solid var(--line);background:color-mix(in srgb,var(--bg) 55%,transparent)}}
 .screen{flex:1;padding-block:32px 48px;padding-inline:20px;display:flex;flex-direction:column;gap:28px}
@@ -109,7 +111,7 @@ input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--a
 .exbar{display:flex;justify-content:space-between;align-items:center}
 .auto{font-style:normal;font-family:var(--mono);font-size:.6rem;color:var(--on-accent);background:var(--accent);padding:1px 4px;border-radius:2px;letter-spacing:.06em}
 
-/* HUD tiles + rings */
+/* stat tiles and progress rings */
 .hudrow{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:12px;align-items:stretch}
 .tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:6px;min-width:0}
 .tile small{font-family:var(--mono);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
@@ -234,14 +236,19 @@ input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--a
 .sw.missed{background:var(--bad-soft);border:1.5px dashed var(--bad)}
 .hov:hover rect:not([fill=transparent]),.hov:hover circle:last-child{filter:brightness(1.25) drop-shadow(0 0 4px var(--accent))}
 .sbars{list-style:none;margin:0;padding:18px;display:flex;flex-direction:column;gap:14px;background:var(--surface);border:1px solid var(--line2);border-radius:var(--r)}
-.sbars li{display:grid;grid-template-columns:minmax(0,1.3fr) 1fr auto;gap:10px;align-items:center;font-size:.84rem}
-.sb-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sbars li{display:grid;grid-template-columns:30px minmax(0,1fr) auto;grid-template-areas:"th name val" "th bar sub";column-gap:12px;row-gap:6px;align-items:center;font-size:.88rem}
+.sb-name{grid-area:name;font-weight:500;line-height:1.25;min-width:0}
 .sb-track{position:relative;height:10px}
-.sb-zero{position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:var(--line2)}
-.sb-bar{position:absolute;top:0;bottom:0;background:var(--accent);border-radius:0 2px 2px 0}
+.sb-zero{position:absolute;left:0;top:-3px;bottom:-3px;width:1px;background:var(--line2)}
+.twoway .sb-zero{left:50%}
+.sb-bar{position:absolute;top:0;bottom:0;background:var(--accent);border-radius:0 2px 2px 0;min-width:2px}
 .sb-bar.neg{background:var(--bad);border-radius:2px 0 0 2px}
-.sb-val{display:flex;flex-direction:column;align-items:flex-end;font-size:.78rem;min-width:84px}
-.sb-val small{color:var(--muted);font-size:.68rem}
+.sb-val{grid-area:val;font-size:.8rem;font-weight:700;color:var(--ink);text-align:right;white-space:nowrap}
+.sb-val.down{color:var(--bad)}
+.sb-sub{grid-area:sub;color:var(--muted);font-size:.68rem;text-align:right;white-space:nowrap}
+.sbars .thumb{grid-area:th;width:30px;height:30px;align-self:center}
+.sb-track{grid-area:bar;height:6px!important;background:var(--sunk);border-radius:2px}
+
 .hl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
 .hl li{display:flex;gap:12px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;font-size:.9rem;line-height:1.5}
 .hl li span{font-size:.75rem;padding-top:3px;color:var(--muted)}
@@ -278,8 +285,8 @@ input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--a
 .pl-ex{align-items:center}
 .log .lbody div{align-items:center}
 .results button{align-items:center}
-.sb-name .exn{gap:10px}
-.sb-name .thumb{width:28px;height:28px}
+
+
 .energy{display:flex;gap:18px;align-items:flex-start;padding:20px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
 .energy.ok{border-color:var(--accent-dim)}.energy.warn{border-color:rgba(var(--warn-rgb),.5)}.energy.bad{border-color:rgba(var(--bad-rgb),.5)}
 .en-score{display:flex;align-items:baseline;gap:2px;flex:none;padding:10px 12px;border-radius:var(--r);background:var(--sunk)}
@@ -670,7 +677,7 @@ i.next{border:1px solid var(--line2)}
 .log .lbody span:last-child{color:var(--muted);text-align:right;font-size:.8rem}
 .new-badge{color:var(--accent);font-family:var(--mono);font-size:.68rem}
 
-/* overload */
+/* lifts tab: is each exercise going up or down */
 .olist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
 .olrow{width:100%;display:flex;align-items:center;gap:14px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px}
 .olrow:hover{border-color:var(--accent-dim)}
@@ -751,7 +758,7 @@ i.next{border:1px solid var(--line2)}
 .setrow.done .setn{color:var(--accent)}
 .exnav{display:flex;gap:8px}.exnav .btn{flex:1}
 
-/* timer, sheet, toast, fx */
+/* rest timer, pop-up sheets, toast messages and the PR celebration */
 #timer{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(72px + env(safe-area-inset-bottom,0px));width:min(448px,calc(100% - 32px));background:var(--accent);color:var(--on-accent);border-radius:var(--r);padding:12px 14px;display:flex;align-items:center;gap:12px;z-index:20;box-shadow:0 0 30px -6px var(--accent)}
 #timer .t{font-size:2rem;font-weight:700;line-height:1;min-width:76px}
 #timer .tl{flex:1;display:flex;flex-direction:column;gap:6px;font-size:.8rem;font-weight:600;min-width:0}
@@ -833,6 +840,100 @@ i.next{border:1px solid var(--line2)}
 
 @media (max-width:400px){h1{font-size:2.1rem}.cstats{grid-template-columns:1fr 1fr}.cstats div:last-child{grid-column:span 2}.lib{grid-template-columns:1fr}.ex-fields{grid-template-columns:1fr 1fr}.foodrow{grid-template-columns:1fr 1fr auto}.foodrow input:nth-of-type(3),.foodrow input:nth-of-type(4){grid-row:2}.fhead{display:none}.target{grid-auto-flow:row;grid-template-columns:1fr 1fr}}
 @media (prefers-reduced-motion:reduce){.scan,.blink{animation:none}}
+.morebtn{width:100%;background:none;border:1px dashed var(--line2);border-radius:var(--r);padding:9px;color:var(--muted);font-family:var(--mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase}
+.morebtn:hover{color:var(--accent);border-color:var(--accent-dim)}
+/* search */
+#sheet:has(.searchcard){place-items:start center;padding-top:max(16px,env(safe-area-inset-top))}
+.searchcard{padding:0;gap:0;max-height:min(640px,86vh);overflow:hidden}
+.gs-bar{display:flex;align-items:center;gap:10px;padding:10px 10px 10px 16px;border-bottom:1px solid var(--line)}
+.gs-bar svg{width:19px;height:19px;color:var(--accent);flex:none}
+.gs-bar input{flex:1;min-width:0;border:0!important;background:none!important;padding:8px 0!important;font-size:1rem;box-shadow:none!important;outline:none}
+.gs-bar input::-webkit-search-cancel-button{display:none}
+.gs-results{overflow:auto;padding:6px 8px 12px}
+.gs-group{padding-top:10px}
+.gs-group h4{margin:0 8px 4px;font-family:var(--mono);font-size:.62rem;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.gs-row{width:100%;display:flex;align-items:center;gap:12px;padding:9px 8px;background:none;border:0;border-radius:4px;text-align:left;color:var(--ink)}
+.gs-row:hover,.gs-row:focus-visible{background:var(--accent-soft);outline:none}
+.gs-row .avatar,.gs-row .thumb{width:32px;height:32px;font-size:.74rem}
+.gs-ic{width:32px;height:32px;flex:none;display:grid;place-items:center;border:1px solid var(--line2);border-radius:2px;color:var(--muted)}
+.gs-ic svg{width:16px;height:16px}
+.gs-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.gs-txt b{font-weight:500;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gs-txt small{font-size:.74rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gs-txt mark{background:none;color:var(--accent);font-weight:700}
+.gs-empty{margin:0;padding:28px 12px;text-align:center;color:var(--muted);font-size:.88rem}
+/* weekly summary: one tidy list instead of separate boxes */
+.summary{gap:20px}
+.sum-hd{display:flex;flex-direction:column;gap:4px}
+.sumline{font-size:.95rem;line-height:1.6;color:var(--ink2,var(--ink))}
+.cwlist{gap:0;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--sunk)}
+.cweek{border:0;border-radius:0;background:none}
+.cweek+.cweek{border-top:1px solid var(--line)}
+.cweek.open{background:var(--surface);box-shadow:inset 2px 0 0 var(--accent)}
+.cw-head{padding:16px;gap:14px}
+.cw-head .avatar{width:34px;height:34px}
+.cw-name{gap:4px}
+.cw-st{font-size:.82rem}
+.cw-body{border-top:0;padding:2px 16px 18px;gap:14px}
+/* Workouts tab: routine name with small buttons, then a light date row (no boxes) */
+.routine-hd{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.routine-hd>div:first-child{display:flex;flex-direction:column;gap:6px;min-width:0}
+.routine-hd h2{line-height:1.1}
+.routine-btns{display:flex;gap:4px;flex:none}
+.datestrip{padding:14px 12px 12px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);gap:12px}
+.datestrip .ds-hd{padding:0 4px}
+.datestrip .weekchips{gap:2px}
+.datestrip .wchip{border:0;background:none;padding:8px 0 6px;gap:4px;border-radius:4px}
+.datestrip .wchip:not([disabled]):hover{background:var(--accent-soft)}
+.datestrip .wchip.today{background:var(--accent-soft);box-shadow:inset 0 -2px 0 var(--accent)}
+.datestrip .wchip.today span{color:var(--accent)}
+.ds-dot{width:5px;height:5px;border-radius:50%;min-height:0!important}
+.ds-dot.train{background:var(--accent)}
+.ds-dot.rest{background:var(--line2)}
+.ds-dot.changed{background:none;box-shadow:0 0 0 1.5px var(--accent);width:6px;height:6px}
+/* phones: tighter type and spacing so more fits on one screen, and lighter effects for smooth scrolling */
+button,a,label,input,select,textarea{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+@media (max-width:520px){
+  html{font-size:15px}
+  body{font-size:14.5px;line-height:1.5;background-attachment:scroll}
+  .appbar,.tabbar{backdrop-filter:none;-webkit-backdrop-filter:none}
+  .appbar{background:var(--surface);padding:8px 16px}
+  .tabbar{background:var(--surface)}
+  .tabbar button{padding:8px 4px 6px;gap:3px;font-size:.6rem}
+  .tabbar svg{width:20px;height:20px}
+  .screen{padding-block:18px 32px;padding-inline:16px;gap:18px}
+  h1{font-size:1.9rem}
+  h2{font-size:1.15rem}
+  h3{font-size:.92rem}
+  .hd{gap:4px}
+  .card{padding:16px 14px;gap:14px}
+  .ccard,.repcard{padding:16px 14px;gap:14px}
+  .energy{padding:14px;gap:14px}
+  .summary{gap:16px}
+  .btn{padding:8px 12px;font-size:.92rem;letter-spacing:.1em}
+  .btn.big{padding:12px;font-size:1rem}
+  .btnrow{gap:8px}
+  .avatar.big{width:42px;height:42px;font-size:1rem}
+  .chead{gap:12px}
+  .tabs{gap:0}
+  .tabs button{padding:10px 10px;font-size:.68rem;letter-spacing:.1em}
+  .weekbanner{padding:10px 14px;font-size:.8rem}
+  .day{padding:14px;gap:12px}
+  .dayhead{padding:13px 14px;gap:12px}
+  .exrow{padding:12px;gap:10px}
+  .wchip{padding:5px 0 4px}
+  .wchip b{font-size:.88rem}
+  .pill{font-size:.62rem;padding:2px 6px}
+  .back{font-size:.74rem}
+  .section-hd{gap:6px}
+  .rq{gap:6px!important}
+  .rq span{font-size:.86rem}
+  .rq small{font-size:.64rem}
+  .seg5 button,.seg10 button{padding:6px 0}
+  .readyline{padding:8px 10px}
+  .statnote{padding:12px 14px}
+}
+@media (min-width:350px) and (max-width:400px){.cstats{grid-template-columns:repeat(3,1fr)!important;gap:10px}.cstats div:last-child{grid-column:auto!important}}
 </style>
 
 <div id="demo"></div>
@@ -852,4 +953,5 @@ i.next{border:1px solid var(--line2)}
 <script src="ui-templates.js"></script>
 <script src="ui-calendar.js"></script>
 <script src="ui-checkins.js"></script>
+<script src="ui-search.js"></script>
 <script src="app.js"></script>

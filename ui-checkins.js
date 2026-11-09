@@ -1,13 +1,15 @@
-/* Spotter: weekly check-ins, form-check videos, off-plan meals and installing the app */
+/* ui-checkins.js: four features that came later.
+   1. weekly check-in   2. form-check videos   3. meals that weren't on the plan   4. adding the app to your home screen */
 
 /* ---------- weekly check-in ---------- */
 /* One per week (c.checkins, keyed by its Monday). Weight and measurements also go to the usual history. */
 const ciOf=(c,mon)=>(c.checkins||[]).find(x=>x.week===mon);
+// "vis" = the coach can see it (it's not stuck offline). toAnswer = how many still need a reply from the coach
 const visCi=c=>(c.checkins||[]).filter(x=>x.synced!==false).sort((a,b)=>b.ts-a.ts);
 const visFc=c=>(c.formChecks||[]).filter(x=>x.synced!==false).sort((a,b)=>b.ts-a.ts);
 const toAnswer=c=>visCi(c).filter(x=>!x.reply).length+visFc(c).filter(x=>!x.reply).length;
-// open all week, due from Friday
-const ciDue=c=>!ciOf(c,mondayOf(today()))&&weekIdx(today())>=4;
+// The check-in is due from the coach's chosen day (Friday unless they change it), and only if not sent yet
+const ciDue=c=>!ciOf(c,mondayOf(today()))&&weekIdx(today())>=pref(coach(c.coachId),'ciDay');
 const SCALE5={sleep:['poor','great'],stress:['calm','very stressed']};
 const CAM='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6.5" width="13" height="11" rx="1.5"/><path d="M16 10.5l5-3v9l-5-3"/></svg>';
 function ciFacts(c,ci){
@@ -15,6 +17,7 @@ function ciFacts(c,ci){
   const d=prev&&hasW(ci.kg)?Math.round((ci.kg-prev.kg)*10)/10:null;
   return `<dl class="ci-facts"><div><dt>Weight</dt><dd class="mono">${hasW(ci.kg)?kg(ci.kg):'–'}<small> kg${d?` · ${d>0?'+':'−'}${kg(Math.abs(d))}`:''}</small></dd></div><div><dt>Sleep</dt><dd class="mono">${ci.sleep||'–'}<small>/5</small></dd></div><div><dt>Stress</dt><dd class="mono">${ci.stress||'–'}<small>/5</small></dd></div></dl>`;
 }
+// the client's check-in form, or a summary of it once it's sent
 function checkinCard(c){
   const T=today(),ci=ciOf(c,mondayOf(T)),cn=esc(first(coach(c.coachId).name)),f=ui.ci;
   if(ci&&!f)return `<section class="card hud ci"><div class="section-hd"><h3>Weekly check-in</h3><span class="pill ok">Sent ${ci.date===T?'today':fmtShort(ci.date)}</span></div>
@@ -41,7 +44,7 @@ function newReply(c){
 function checkinNudge(c){
   const cn=esc(first(coach(c.coachId).name)),r=newReply(c);
   if(r)return `<button class="invlink nudge" data-act="nav" data-v="progress"><span><b>${cn} replied</b> to your ${r.week?'check-in':`${esc(exById(r.exId).name)} form check`}</span><span class="chev" aria-hidden="true">›</span></button>`;
-  if(ciDue(c))return `<button class="invlink nudge" data-act="nav" data-v="progress"><span><b>Weekly check-in</b> · about two minutes</span><span class="chev" aria-hidden="true">›</span></button>`;
+  if(ciDue(c)&&pref(c,'ciRemind'))return `<button class="invlink nudge" data-act="nav" data-v="progress"><span><b>Weekly check-in</b> · about two minutes</span><span class="chev" aria-hidden="true">›</span></button>`;
   return '';
 }
 function mealsPct(c,mon){
@@ -66,7 +69,7 @@ function coachCheckins(c){
   const row=ci=>`<button class="cirow" data-act="ci-open" data-id="${ci.id}"><span><b>${weekName(c,ci.week)||fmtShort(ci.week)}</b><small>${weekRange(ci.week)}</small></span><span class="mono">${hasW(ci.kg)?`${kg(ci.kg)} kg · `:''}sleep ${ci.sleep} · stress ${ci.stress}</span><span class="chev" aria-hidden="true">▾</span></button>`;
   const shown=ui.ciAll?cis:cis.slice(0,5),first0=cis[0]&&cis[0].id;
   const open=ci=>!ci.reply||ui.ciOpen===ci.id||(ui.ciOpen==null&&ci.id===first0);
-  return `<section class="rsec"><h2>Weekly check-ins</h2>${cis.length?`<div class="cilist">${shown.map(ci=>open(ci)?full(ci):row(ci)).join('')}</div>${cis.length>5?`<button class="btn" data-act="ci-all">${ui.ciAll?'Show fewer':`Show all ${cis.length}`}</button>`:''}`
+  return `<section class="rsec"><h2>Weekly check-ins</h2>${cis.length?`<div class="cilist">${shown.map(ci=>open(ci)?full(ci):row(ci)).join('')}</div>${cis.length>5?`<button class="morebtn" data-act="ci-all">${ui.ciAll?'Show fewer ▴':`Show all ${cis.length} ▾`}</button>`:''}`
     :`<p class="hint">No check-ins yet. ${who} is asked for one at the end of each week.</p>`}</section>
   ${fcs.length?`<section class="rsec"><h2>Form checks</h2><p class="hint">Videos ${who} filmed during a workout.</p>${fcs.slice(0,4).map(fc=>fcCard(c,fc,'coach')).join('')}</section>`:''}`;
 }
@@ -108,6 +111,7 @@ function mealXList(c,date,role){
   const nm=id=>{const m=day&&day.meals.find(y=>y.id===id);return m?m.name:'a planned meal'};
   return `<div class="mxlist"><span class="eyebrow">${role==='client'?'Off the plan':`${esc(first(c.name))} ate off the plan`}</span>${xs.map(x=>`<div class="mxitem">${x.photo?`<img src="${x.photo}" alt="Photo of the meal">`:''}<span><b>${esc(x.text||'Photo only')}</b><small>${x.instead?`Instead of ${esc(nm(x.instead))}`:'Extra, on top of the plan'} · ${fmtClock(x.ts)}</small></span>${role==='client'?`<button class="icon-btn" data-act="mx-del" data-d="${date}" data-id="${x.id}" aria-label="Remove">✕</button>`:''}</div>`).join('')}</div>`;
 }
+// pop-up for logging a meal that wasn't on the plan
 function mxSheet(c){
   const m=ui.mealX,day=c.meals.days[weekIdx(m.date)];
   return `<form class="card hud sheetcard" data-form="mx" role="dialog" aria-label="Log a meal"><div><div class="section-hd"><h2>What did you eat?</h2><button type="button" class="icon-btn" data-act="close-sheet" aria-label="Close">✕</button></div><p class="hint">${m.date===today()?'Today':fmtDate(m.date)} · ${esc(first(coach(c.coachId).name))} sees it next to your plan. Your plan stays the same.</p></div>
@@ -121,6 +125,7 @@ function mxSheet(c){
 let installEvt=null;
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEvt=e});
 const isInstalled=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+// "add to home screen" steps for iPhone and Android
 function installSheet(){
   return `<div class="card hud sheetcard" role="dialog" aria-label="Add to home screen"><div class="section-hd"><h2>Add to home screen</h2><button class="icon-btn" data-act="close-sheet" aria-label="Close">✕</button></div>
     ${isInstalled()?'<p class="muted">Spotter is already on this phone’s home screen.</p>':`<p class="muted">Once it's on your home screen, Spotter opens full screen from its own icon and keeps working without signal.</p>

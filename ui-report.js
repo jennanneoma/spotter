@@ -1,11 +1,14 @@
-/* Spotter: client report for coaches. Every chart shows one measure, in plain words. */
+/* ui-report.js: the coach's report on one client.
+   reportData() does all the counting first (workouts done, strength, weight...),
+   then the chart functions turn those numbers into pictures with a plain headline on top. */
+// does all the counting for one client over a chosen period. The charts below just draw what this returns
 function reportData(c,weeksBack){
   const T=today(),logs=visLogs(c).slice().sort((a,b)=>a.finishedAt-b.finishedAt);
   const firstDate=[c.plan&&c.plan.startDate,logs[0]&&logs[0].date].filter(Boolean).sort()[0]||T;
   let start=weeksBack?addDays(mondayOf(T),-7*(weeksBack-1)):mondayOf(firstDate);
   if(start<mondayOf(firstDate))start=mondayOf(firstDate);
   const inRange=logs.filter(l=>l.date>=start&&l.date<=T);
-  // weekly attendance, volume, effort, readiness
+  // go week by week: what was planned, what got done, how heavy, how hard it felt
   const weeks=[];const missedBy={};let planned=0,done=0;
   for(let w=start;w<=T;w=addDays(w,7)){
     const wk={start:w,planned:0,done:0,missed:0,vol:0,rpe:[],ready:[]};
@@ -19,7 +22,7 @@ function reportData(c,weeksBack){
     wk.vol=Math.round(wk.vol);planned+=wk.planned;done+=Math.min(wk.done,wk.planned||wk.done);
     weeks.push(wk);
   }
-  // strength per lift: first vs last session in the period
+  // strength: for each exercise, compare the first session in the period with the latest one
   const lifts=[];
   for(const id of[...new Set(inRange.flatMap(l=>l.entries.map(e=>e.exId)))]){
     const h=exHistory(c,id).filter(x=>x.date>=start);if(h.length<2)continue;
@@ -30,7 +33,7 @@ function reportData(c,weeksBack){
   lifts.sort((x,y)=>y.pct-x.pct);
   const ws=visW(c).filter(w=>w.date>=start);
   const pts=inRange.reduce((n,l)=>n+(l.prs?l.prs.length:0),0);
-  // meals in range (days that had a meal plan and are in the past or today)
+  // meals: how many planned meals got ticked off
   let mealsPlanned=0,mealsTicked=0;
   if(c.meals)for(let d=c.meals.since&&c.meals.since>start?c.meals.since:start;d<=T;d=addDays(d,1)){const md=c.meals.days[weekIdx(d)];if(!md)continue;const tk=Object.values(c.mealTicks[d]||{}).filter(x=>x.synced!==false).length;if(d<T||tk){mealsPlanned+=md.meals.length;mealsTicked+=tk}}
   const allRpe=inRange.map(l=>l.rpe).filter(Boolean),allReady=weeks.flatMap(w=>w.ready);
@@ -43,7 +46,7 @@ function reportData(c,weeksBack){
     medianPct:lifts.length?lifts.map(l=>l.pct).sort((a,b)=>a-b)[Math.floor(lifts.length/2)]:null};
 }
 const pctText=p=>p==null?'–':`${p>0?'+':p<0?'−':''}${Math.abs(p)}%`;
-/* Graphs answer first: a plain headline and verdict, then the picture */
+/* Each chart starts with the answer in big text ("12 of 14 workouts done"), then the picture underneath */
 const gcHead=(big,text,word='',tone='')=>`<div class="gc-h"><div><b class="mono">${big}</b><span>${text}</span></div>${word?`<span class="pill ${tone}">${word}</span>`:''}</div>`;
 function wkLab(c,w,many,nowWord='this week'){
   const n=weekName(c,w.start),now=w.start===mondayOf(today());
@@ -51,6 +54,7 @@ function wkLab(c,w,many,nowWord='this week'){
   return[n||fmtShort(w.start),now?nowWord:n?fmtShort(w.start):''];
 }
 const gcX=([a,b],on)=>`<span class="gc-x ${on?'on':''}"><b>${a}</b>${b?`<small>${b}</small>`:''}</span>`;
+// one column per week, one block per planned workout: filled = done, ✕ = missed
 function consistencyChart(c,R){
   const rows=R.weeks.map(w=>({w,cw:clientWeek(c,w.start)})).filter(x=>x.cw.days.length||x.w.done).slice(-12);
   if(!rows.length)return '<p class="hint">No workouts planned in this period.</p>';
@@ -62,6 +66,7 @@ function consistencyChart(c,R){
   <div class="gc-cols" style="grid-template-columns:repeat(${rows.length},minmax(0,1fr))">${rows.map(({w,cw})=>`<button class="gc-col" data-act="rep-week" data-v="${w.start}" title="${cw.done} of ${cw.days.length} workouts done" aria-label="${weekName(c,w.start)||fmtShort(w.start)}: ${cw.done} of ${cw.days.length} workouts done. Open in the calendar"><span class="gc-n mono">${many?cw.done:`${cw.done} of ${cw.days.length}`}</span><span class="gc-stack">${cw.days.map(kind).sort((a,b)=>order[a]-order[b]).map(k=>`<i class="${k}" style="height:${h}px">${k==='miss'?'✕':''}</i>`).join('')}</span>${gcX(wkLab(c,w,many),w.start===mondayOf(today()))}</button>`).join('')}</div>
   <div class="legend">${seen.has('done')?'<span><i class="tok done"></i>Done</span>':''}${seen.has('miss')?'<span><i class="tok miss">✕</i>Not logged</span>':''}${seen.has('next')?'<span><i class="tok next"></i>Coming up</span>':''}<span class="gc-tap">Tap a week for details</span></div></div>`;
 }
+// total kilograms lifted each week (weight × reps, added up)
 function volumeChart(c,R){
   const rows=R.weeks.filter(w=>w.vol).map(w=>({w,v:w.vol})).slice(-12);
   if(!rows.length)return '<p class="hint">No weights logged in this period.</p>';
@@ -74,7 +79,7 @@ function volumeChart(c,R){
   return `<div class="chart gc">${head}<p class="gc-cap">Kilograms lifted each week. Taller means more.</p>
   <div class="gc-cols" style="grid-template-columns:repeat(${rows.length},minmax(0,1fr))">${rows.map((r,i)=>{const now=r.w.start===mon;return `<div class="gc-col" title="${r.v.toLocaleString()} kg"><span class="gc-n mono">${lab(r,i)?(many?(r.v/1000).toFixed(1)+'k':r.v.toLocaleString()):''}</span><span class="gc-bar ${now?'cur':''}" style="height:${Math.max(3,r.v/max*136)}px"></span>${gcX(wkLab(c,r.w,many,'so far'),now)}</div>`}).join('')}</div></div>`;
 }
-/* A line running through named zones, so the reader sees "Hard" rather than a number to interpret */
+/* A line chart with labelled bands behind it ("Easy", "Hard"...), so you can read it without knowing the numbers */
 function zoneChart(points,bands,top,avg,label,suffix=''){
   const W=340,H=196,pl=8,gut=62,pt=24,pb=38,vals=points.map(p=>p.v),lo=Math.max(bands[0][0],Math.min(bands[1][0]-(top-bands[1][0])*.22,Math.floor(Math.min(...vals)-(top/10))));
   const n=points.length,many=n>6,x=i=>pl+(W-pl-gut)*(i+.5)/n,y=v=>pt+(H-pt-pb)*(1-(v-lo)/(top-lo));
@@ -106,12 +111,15 @@ function energyChart(c,R){
 }
 function strengthBars(lifts){
   if(!lifts.length)return `<p class="hint">Needs at least two sessions of a lift in this period.</p>`;
-  const m=Math.max(5,...lifts.map(l=>Math.abs(l.pct)));
-  return `<ul class="sbars">${lifts.map(l=>{const w=Math.abs(l.pct)/m*50;return `<li title="${esc(l.name)}: ${l.from} → ${l.to} ${l.unit} over ${l.sessions} sessions">
-    <span class="sb-name"><span class="exn">${thumb(exById(l.id))}<span>${esc(l.name)}</span></span></span>
-    <span class="sb-track"><span class="sb-zero"></span>${l.pct?`<span class="sb-bar ${l.pct<0?'neg':''}" style="${l.pct<0?`right:50%`:`left:50%`};width:${w}%"></span>`:''}</span>
-    <span class="sb-val mono">${l.pct>0?'▲':l.pct<0?'▼':'●'} ${pctText(l.pct)}<small>${kg(l.from)} → ${kg(l.to)} ${l.unit}</small></span></li>`}).join('')}</ul>`;
+  // full name on top, bar underneath. The zero line sits in the middle only when some lift went down
+  const m=Math.max(5,...lifts.map(l=>Math.abs(l.pct))),neg=lifts.some(l=>l.pct<0),half=neg?50:100;
+  return `<ul class="sbars ${neg?'twoway':''}">${lifts.map(l=>{const w=Math.abs(l.pct)/m*half;return `<li title="${esc(l.name)}: ${l.from} → ${l.to} ${l.unit} over ${l.sessions} sessions">
+    ${thumb(exById(l.id))}<span class="sb-name">${esc(l.name)}</span>
+    <span class="sb-val mono ${l.pct<0?'down':''}">${l.pct>0?'▲':l.pct<0?'▼':'●'} ${pctText(l.pct)}</span>
+    <span class="sb-track"><span class="sb-zero"></span>${l.pct?`<span class="sb-bar ${l.pct<0?'neg':''}" style="${l.pct<0?'right:50%':`left:${neg?50:0}%`};width:${w}%"></span>`:''}</span>
+    <small class="sb-sub mono">${kg(l.from)} → ${kg(l.to)} ${l.unit}</small></li>`}).join('')}</ul>`;
 }
+// the "key points" list: the most useful facts, in plain sentences
 function highlights(c,R){
   const out=[];const name=first(c.name);
   if(R.attendance!=null)out.push([R.attendance>=80?'up':R.attendance>=60?'flat':'down',`Did <b>${R.done} of ${R.planned}</b> planned workouts (${R.attendance}%).`]);
@@ -127,6 +135,7 @@ function highlights(c,R){
   const st=streak(c);if(st>2)out.push(['up',`On a streak of ${st} workouts in a row.`]);
   return `<ul class="hl">${out.map(([k,t])=>`<li class="${k}"><span aria-hidden="true">${k.startsWith('up')?'▲':k.startsWith('down')?'▼':'●'}</span><p>${t}</p></li>`).join('')}</ul>`;
 }
+// one client's report: period chips, tabs (Overview, Strength, Body, Calendar), then the charts
 function reportView(c){
   const range=ui.repRange??4,R=reportData(c,range),tab=ui.repTab||'overview';
   if(!visLogs(c).length)return `<div class="card hud empty"><h2>No workouts yet</h2><p class="muted">The report fills in after ${esc(first(c.name))} logs their first workout. It will show consistency, strength changes, body weight, effort and a full workout history.</p></div>`;
@@ -146,12 +155,12 @@ function reportView(c){
     <section class="rsec"><h3>How hard workouts felt</h3>${effortChart(c,R)}</section>
     ${energyChart(c,R)}`;
   else if(tab==='strength'){const all=ui.strAll,shown=all?R.lifts:R.lifts.slice(0,6);body=`
-    <section class="rsec"><h3>Strength by exercise</h3><p class="hint">Heaviest set at the start of the period compared with the latest session. Bodyweight moves use reps.</p>${strengthBars(shown)}
-    ${R.lifts.length>6?`<button class="btn" data-act="str-all">${all?'Show top 6 only':`Show all ${R.lifts.length} exercises`}</button>`:''}</section>
+    <section class="rsec"><h3>Strength by exercise</h3><p class="hint">Start of the period compared with the latest session.</p>${strengthBars(shown)}
+    ${R.lifts.length>6?`<button class="morebtn" data-act="str-all">${all?'Show top 6 only ▴':`Show all ${R.lifts.length} exercises ▾`}</button>`:''}</section>
     <section class="rsec"><h3>Total weight lifted</h3>${volumeChart(c,R)}</section>`}
   else if(tab==='body')body=`
     <section class="rsec"><h3>Body weight</h3>${R.ws.length?weightChart(R.ws,R.bwChange!=null?gcHead(`${R.bwChange>0?'+':R.bwChange<0?'−':''}${Math.abs(R.bwChange)} kg`,`in this period · now ${kg(R.ws[R.ws.length-1].kg)} kg`):''):'<p class="hint">No weigh-ins in this period.</p>'}</section>
-    <section class="rsec"><h3>Body measurements</h3><p class="hint">Centimetres, from the client's check-ins. A smaller waist and hips usually mean fat loss; bigger arms and chest mean muscle.</p>${measurementsView(c,'coach')}</section>
+    <section class="rsec"><h3>Body measurements</h3><p class="hint">Centimetres, from check-ins.</p>${measurementsView(c,'coach')}</section>
     <section class="rsec"><h3>Progress photos</h3>${photosHistory(c.photos.filter(p=>p.synced!==false))}</section>`;
   else body=calendarView(c);
   return `${tab==='history'?'':period}
@@ -159,12 +168,12 @@ function reportView(c){
   ${body}`;
 }
 
-/* Reports: its own section in the coach's bottom bar */
+/* The Reports tab: the weekly summary, or one client's full report */
 function reportsView(co){
   const mine=S.clients.filter(c=>c.coachId===co.id&&!c.archived&&!isInvited(c));
   const c=ui.repClient&&mine.find(x=>x.id===ui.repClient);
-  if(c)return `<button class="back" data-act="nav" data-v="reports">‹ All reports</button>
+  if(c)return `${backBtn('reports','All reports')}
     <header class="hd"><p class="eyebrow">Report</p><h1>${esc(c.name)}</h1><p class="sub">${esc(c.goal||'')}</p></header>${reportView(c)}`;
-  return `<header class="hd"><h1>Reports</h1><p class="sub">How your clients are doing. Tap a client to see their week, then open their full report.</p></header>
+  return `<header class="hd"><h1>Reports</h1></header>
   ${weeklySummaryView(co)}`;
 }

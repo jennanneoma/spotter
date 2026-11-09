@@ -1,7 +1,13 @@
-/* Spotter exercise animations: a posed 3D skeleton (world angles per limb, IK for planted hands/feet),
-   rendered from a per-exercise camera. Angle convention for every segment:
-   sagittal θ: 0 = straight down, 90 = forward, 180 = straight up, 270 = backward.
-   abduction α: 0 = in the sagittal plane, + = out to that side (90 = straight out sideways). */
+/* anim.js: the moving stick-figure demos for each exercise.
+   How it works, roughly:
+   - a skeleton is a set of joints (hips, knees, shoulders...) in 3D
+   - each exercise ("pattern") says how the limbs are angled at the start and at the hardest point
+   - we blend between those two poses over time, so the figure moves
+   - hands or feet that should stay put (like on a bar) get pulled into place ("IK", inverse kinematics)
+   - then everything is drawn flat onto a canvas from a camera angle that suits the exercise
+   Angles for each limb:
+     forward/back: 0 = pointing straight down, 90 = forward, 180 = straight up, 270 = backward
+     sideways: 0 = not out to the side at all, 90 = straight out to the side */
 (function(){
 const D2R=Math.PI/180;
 const V={add:(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]],sub:(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]],mul:(a,k)=>[a[0]*k,a[1]*k,a[2]*k],
@@ -12,10 +18,10 @@ const LIMB=['th','tha','sh','sha','ua','uaa','fa','faa'];
 const BASE={t:180,ta:0,th:0,tha:4,sh:0,sha:0,ua:0,uaa:10,fa:0,faa:5,lift:0,dz:0,shrug:0};
 const SEG={torso:36,thigh:28,shin:27,upper:19,fore:18,hipW:6,shW:9};
 
-/* cameras */
+/* camera angles: from the side, three-quarter, front, and from above */
 const SIDE={yaw:72,pitch:12},Q={yaw:45,pitch:16},FRONT={yaw:14,pitch:12},HIGH={yaw:32,pitch:26};
 
-/* ---- patterns ---- */
+/* ---- patterns: the start pose and the hard pose for each kind of exercise ---- */
 const lying={anchor:'hip',ay:30,bench:{from:'head',to:'hip'},cam:{yaw:55,pitch:18}};
 const seated={anchor:'hip',ay:28,seat:true};
 const pushA={t:114,th:-66,sh:-66,ua:0,uaa:10,fa:0,faa:0};
@@ -109,7 +115,7 @@ const PAT={
  jack:{cam:{yaw:2,pitch:10},per:1000,keys:[{tha:4,ua:0,uaa:12,fa:0,faa:10},{lift:6,tha:12,sha:10,uaa:90,faa:95},{lift:0,tha:20,sha:18,uaa:170,faa:175},{lift:6,tha:12,sha:10,uaa:90,faa:95}]},
 };
 
-/* ---- pose machinery ---- */
+/* ---- turning angles into joint positions ---- */
 function resolveKeys(keys){
   const out=[];let prev=null;
   for(const k of keys){
@@ -179,7 +185,7 @@ function frameAt(pat,f){
   J.q=q;return J;
 }
 
-/* ---- prepare + fit ---- */
+/* ---- getting a pattern ready, and sizing it to fit the box ---- */
 const cache={};
 function prep(name){
   if(cache[name])return cache[name];
@@ -197,7 +203,7 @@ function prep(name){
   return cache[name]=pat;
 }
 
-/* ---- painting ---- */
+/* ---- drawing it ---- */
 function figurePts(J){return[J.hip,J.sc,J.head,J.L.knee,J.R.knee,J.L.ank,J.R.ank,J.L.elb,J.R.elb,J.L.hand,J.R.hand]}
 function toe(J,k,pat){
   const a=J[k].ank;
@@ -266,7 +272,7 @@ function grid(pen,pat,J,f,C){
   }
 }
 
-/* ---- canvas renderer ---- */
+/* ---- the animation loop: redraws every visible demo about 60 times a second ---- */
 let COLORS=null,colorsAt=0;
 function readColors(){
   const cs=getComputedStyle(document.documentElement),g=n=>cs.getPropertyValue(n).trim();

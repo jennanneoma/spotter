@@ -14,6 +14,8 @@ This is a front-end prototype. It runs on sample data saved in your browser, and
 
 - **Coach:** clients, invites, routines with weekly weight increases, meal plans, templates, reports and a calendar of what each client did. A single date can be changed on its own, or the change applied to that weekday from then on. Weekly check-ins and form-check videos to reply to
 - **Client:** today's workout, set logging with rest timer, energy check, meals (including logging something off the plan), a weekly check-in, form-check videos, progress photos, body weight and measurements, chat with the coach
+- **Search:** one search box for clients, exercises, meals, messages and every setting
+- **Settings:** check-in day, reminders, notifications, themes and a data download
 - **Install:** can be added to a phone's home screen
 - **Themes:** lime (default), pink, ocean, violet, ember, blush and a light theme(might remove this feature)
 

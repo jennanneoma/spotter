@@ -1,12 +1,21 @@
-/* Spotter: helpers, exercise library, sample data, and progress maths */
+/* data.js: the "brain" of the app. No screens in here, just data and maths.
+   - small helpers for dates, names and numbers (used everywhere)
+   - the list of exercises
+   - seed(): makes the sample coaches and clients you see in the demo
+   - the maths for progress: streaks, how a lift is going, weekly weights
+   Everything the app knows lives in one object called S. It gets saved in the browser (see app.js). */
 const $=s=>document.querySelector(s);
+// quick random id like "k3j9x0ab", for anything new we create
 const uid=()=>Math.random().toString(36).slice(2,10);
 const clone=o=>JSON.parse(JSON.stringify(o));
+// esc() makes text safe to put in HTML (so a name like <b> shows as text, not as code)
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function iso(d){const z=new Date(d);return z.getFullYear()+'-'+String(z.getMonth()+1).padStart(2,'0')+'-'+String(z.getDate()).padStart(2,'0')}
+// dates are kept as text like "2026-11-09", which sorts in the right order for free
 const today=()=>iso(new Date());
 function addDays(s,n){const d=new Date(s+'T12:00');d.setDate(d.getDate()+n);return iso(d)}
 function daysBetween(a,b){return Math.round((new Date(b+'T12:00')-new Date(a+'T12:00'))/864e5)}
+// the Monday of the week a date is in. Weeks always run Monday to Sunday here
 function mondayOf(s){const d=new Date(s+'T12:00');return addDays(s,-((d.getDay()+6)%7))}
 const weekIdx=s=>(new Date(s+'T12:00').getDay()+6)%7;
 const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],WK=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],WKL=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
@@ -27,14 +36,16 @@ function topReps(s){const m=String(s).match(/(\d+)\s*(?:-|–|to)\s*(\d+)/);if(m
 function lowReps(s){const n=parseInt(s);return isNaN(n)?null:n}
 const roundTo=(x,step=1.25)=>Math.round(x/step)*step;
 
-/* ---------- progression: how a row's weight changes ----------
+/* ---------- progression: how the weight changes over time ----------
+   The coach picks one of these for each exercise:
    none   : same weight every time
-   weekly : add `step` kg every `every` weeks, counted from `since` (Monday the coach set it) or the plan start
-   earned : add `step` kg after a workout where every set hits the top of the rep range
-   sets   : change by `step` kg from one set to the next (negative = drop sets) */
+   weekly : add `step` kg every `every` weeks, counting from `since` (the Monday it was set) or the plan start
+   earned : add `step` kg once a workout has every set at the top of the rep range (e.g. all sets of 12 in "8-12")
+   sets   : each set is `step` kg heavier than the one before (a minus number makes drop sets) */
 const PROG_TYPES=[['none','Same weight','No automatic change'],['weekly','Add every week','Goes up each week'],['sets','Add after every set','Heavier each set, in the same workout']];
 function progOf(r){const p=r.prog;if(!p)return{type:'none',step:2.5,every:1};if(typeof p==='number')return{type:'none',step:p||2.5,every:1};const o={type:'none',step:2.5,every:1,...p};if(o.type==='earned')o.type='none';return o}
 function weekNo(r,date,plan){const p=progOf(r),since=r.since||(plan&&plan.startDate)||date;return Math.max(0,Math.floor(daysBetween(since,date)/7/(p.every||1)))}
+// works out the weight for one set on a given date, following the progression rules above
 function setWeight(r,i,date,plan){
   if(!hasW(r.weight))return'';
   const p=progOf(r);let w=+r.weight;
@@ -61,7 +72,8 @@ function progSentence(r,plan,who='coach'){
   return `Same weight every session: ${kg(r.weight)} kg.`;
 }
 
-/* ---------- exercise library: [name, group, animation, load override] ---------- */
+/* ---------- the exercise list ----------
+   Each line is [name, muscle group, which animation to play, what's being lifted (optional)] */
 const GROUPS=['Chest','Back','Shoulders','Biceps','Triceps','Legs','Core','Conditioning'];
 const EX=[
 ['Barbell Bench Press','Chest','bench'],['Incline Barbell Bench Press','Chest','incline'],['Decline Bench Press','Chest','decline'],['Dumbbell Bench Press','Chest','bench','db'],['Incline Dumbbell Press','Chest','incline','db'],['Dumbbell Fly','Chest','fly'],['Incline Dumbbell Fly','Chest','fly'],['Cable Crossover','Chest','cfly'],['Low-to-High Cable Fly','Chest','lhfly'],['Push-Up','Chest','pushup'],['Incline Push-Up','Chest','ipushup'],['Chest Dip','Chest','dip'],['Machine Chest Press','Chest','cpress'],['Pec Deck','Chest','pecdeck'],
@@ -81,7 +93,9 @@ function plates(total,bar=20){
   return{out,left:Math.round(side*100)/100};
 }
 
-/* ---------- sample data ---------- */
+/* ---------- sample data ----------
+   seed() builds a fresh, believable demo: two coaches, a few clients, a few weeks of workouts.
+   It runs on first load, and again each new day so the dates always look recent. */
 function seed(){
   const T=today();
   const S={v:14,online:true,seededOn:T,coaches:[{id:'co1',name:'Immanuel',business:'Immanuel Fitness',logo:null,onboarded:true,notifRead:Date.now()-3*864e5},{id:'co2',name:'Dev Patel',business:'Dev Patel Coaching',logo:null,onboarded:true,notifRead:Date.now()-3*864e5},{id:'co3',name:'New coach',business:'',logo:null,onboarded:false}],
@@ -224,7 +238,9 @@ function seed(){
   }
 }
 
-/* ---------- derived data ---------- */
+/* ---------- looking things up ----------
+   Short helpers to find a client, coach or exercise by id.
+   "vis" means visible: things logged offline stay hidden from the coach until they sync. */
 let S=null;
 const client=id=>S.clients.find(c=>c.id===id);
 const coach=id=>S.coaches.find(c=>c.id===id);
@@ -266,6 +282,7 @@ const weekSpan=(c,from,until)=>{const a=progWeek(c,from),b=progWeek(c,until);ret
 const weekRange=mon=>`${fmtShort(mon)} – ${fmtShort(addDays(mon,6))}`;
 const readyScore=r=>r?Math.round((r.sleep+r.energy+(6-r.sore))/15*100):null;
 const readyCls=s=>s==null?'':s>=75?'ok':s>=55?'warn':'bad';
+// every time a client did one exercise, oldest first, with the heaviest set and total reps
 function exHistory(c,exId,vis=true){
   return(vis?visLogs(c):c.logs).filter(l=>l.entries.some(e=>e.exId===exId)).sort((a,b)=>a.finishedAt-b.finishedAt).map(l=>{
     const e=l.entries.find(x=>x.exId===exId),ws=e.sets.filter(s=>hasW(s.w));
@@ -301,6 +318,7 @@ function overloadSummary(c){
   for(const id of planExIds(c)){const h=exHistory(c,id);const st=overload(h);out[st.key]++;out.items.push({id,h,st})}
   return out;
 }
+// the numbers on a client card: last workout, workouts this week, missed ones
 function stats(c){
   const T=today(),logs=visLogs(c),last=logs.map(l=>l.date).sort().pop(),mon=mondayOf(T);
   const week=logs.filter(l=>l.date>=mon&&l.date<=T).length;
@@ -315,6 +333,7 @@ function stats(c){
   const rd=c.readiness[T];const ready=rd&&rd.synced!==false?readyScore(rd):null;
   return{last,week,planned,missed,since,missedLabel:last?`${since} days since last workout`:`No workouts in ${since} days`,wt,trend,trendCls,wts:ws.slice(-8).map(w=>w.kg),ready};
 }
+// how many planned workouts in a row the client has done
 function streak(c){
   let n=0,d=today();const done=new Set(c.logs.map(l=>l.date));
   const inf0=dayAt(c,d);if(!(inf0.day&&!inf0.day.rest&&done.has(d)))d=addDays(d,-1);
@@ -329,6 +348,7 @@ function adherence(c){
     const md=c.meals&&c.meals.days[i];if(md&&d<=T){const ms=md.meals.length;const tk=Object.keys(c.mealTicks[d]||{}).length;want+=d<T?ms:tk;got+=tk}}
   return want?Math.round(got/want*100):null;
 }
+// how many things the client saved while offline that haven't reached the coach yet
 function pendingCount(c){
   let n=[...c.logs,...c.weights,...c.photos,...c.messages,...c.progressions,...(c.swapFeed||[]),...(c.measures||[]),...(c.checkins||[]),...(c.formChecks||[])].filter(x=>x.synced===false).length;
   for(const d in c.mealLog||{})n+=c.mealLog[d].filter(x=>x.synced===false).length;
@@ -336,6 +356,7 @@ function pendingCount(c){
   for(const d in c.readiness)if(c.readiness[d].synced===false)n++;
   return n;
 }
+// back online: mark everything as sent, so the coach can see it
 function syncAll(){
   let n=0;
   for(const c of S.clients){n+=pendingCount(c);

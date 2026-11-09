@@ -1,4 +1,6 @@
-/* Spotter: onboarding, invites, reminders, exercise swaps, workout notes, measurements, weekly summary */
+/* ui-extras.js: the smaller features, one numbered section each.
+   Setting up a new coach, invite links, reminders, swapping an exercise, notes, measurements,
+   the weekly summary, themes, notifications and settings. */
 const INVITE_HOST='https://spotter.example/join/';
 const inviteLink=c=>INVITE_HOST+c.inviteCode;
 const inviteMsg=(c,co)=>`Hi ${first(c.name)}, I've set up your training on Spotter${co.business?` with ${co.business}`:''}. Tap this link to join and see your plan: ${inviteLink(c)}`;
@@ -99,6 +101,7 @@ function similarExercises(exId){
   const near=S.exercises.filter(x=>x.id!==exId&&famOf(x)!==f&&x.group===e.group).sort((a,b)=>a.name.localeCompare(b.name));
   return(same.length>=4?same:[...same,...near]).slice(0,8);
 }
+// "machine busy?" pop-up that suggests similar exercises for today only
 function swapSheet(c){
   const inf=dayAt(c,today()),r=inf.day.exercises.find(x=>x.id===ui.swapRow);if(!r)return'';
   const orig=exById(r.exId),cur=swapFor(c,r);
@@ -152,6 +155,7 @@ function clientWeek(c,mon){
   w.status=w.miss?'missed':w.planned?'ontrack':ns?'notstarted':'nothingyet';
   return w;
 }
+// gathers one week for every client, for the weekly summary card
 function weekSummary(co,mon){
   const all=S.clients.filter(c=>c.coachId===co.id&&!c.archived),list=all.filter(c=>!isInvited(c)).map(c=>clientWeek(c,mon));
   const order={missed:0,noplan:1,invited:2,notstarted:3,nothingyet:3,ontrack:4};
@@ -198,17 +202,16 @@ function weeklySummaryView(co){
         ${w.notes.map(l=>logNotes(l)).join('')}
         <button class="btn primary sm" data-act="open-report" data-id="${c.id}">Open full report ›</button>`;
     return `<li class="cweek ${open?'open':''}"><button class="cw-head" data-act="sum-open" data-id="${c.id}" aria-expanded="${open}"><span class="avatar">${initials(c.name)}</span><span class="cw-name"><b>${esc(c.name)}</b><span class="cw-st ${st.cls}"><i aria-hidden="true">${st.icon}</i> ${st.text}</span></span><span class="cw-badges">${badges}</span><span class="chev" aria-hidden="true">${open?'▴':'▾'}</span></button>${open?`<div class="cw-body">${body}</div>`:''}</li>`};
-  return `<section class="card hud summary"><div class="section-hd"><div><p class="eyebrow">Weekly summary</p><h2>${which==='last'?'Last week':'This week so far'}</h2><p class="hint">${weekRange(mon)}</p></div>
+  return `<section class="card hud summary"><div class="section-hd"><div class="sum-hd"><h2>Weekly summary</h2><p class="hint">${weekRange(mon)}</p></div>
     <div class="chips" role="group" aria-label="Which week"><button class="chip ${which==='last'?'on':''}" data-act="sum-week" data-v="last">Last week</button><button class="chip ${which==='this'?'on':''}" data-act="sum-week" data-v="this">This week</button></div></div>
     <p class="sumline">${esc(funSummary(W,which))}</p>
-    <ul class="cwlist">${W.list.map(row).join('')}</ul>
-    <p class="hint">Tap a client to see their week day by day.</p></section>`;
+    <ul class="cwlist">${W.list.map(row).join('')}</ul></section>`;
 }
 /* Names: c.name is what the coach calls the client; c.selfName is what the client calls themselves (client app only) */
 const myName=c=>c.selfName||c.name;
 function nameSheet(c){
   return `<form class="card hud sheetcard" data-form="my-name" role="dialog" aria-label="Your name"><div class="section-hd"><h2>Your name</h2><button type="button" class="icon-btn" data-act="close-sheet" aria-label="Close">✕</button></div>
-    <p class="hint">This is how the app greets you. It only changes on your phone; your coach's list stays the same.</p>
+    <p class="hint">Only changes it on your phone.</p>
     <label>What should we call you?<input id="my-name" name="name" value="${esc(myName(c))}" required maxlength="40" autocomplete="name"></label>
     <button class="btn primary big">Save</button></form>`;
 }
@@ -223,7 +226,7 @@ function setTheme(t){themeMem[`${ui.user.role}:${ui.user.id}`]=t;try{localStorag
 const themeButton=()=>`<button class="themebtn" data-act="theme-open">${PALETTE}Themes</button>`;
 function themeSheet(){
   const cur=themeOf();
-  return `<div class="card hud sheetcard" role="dialog" aria-label="Themes"><div class="section-hd"><div><h2>Themes</h2><p class="hint">Pick your colors. This only changes the app on your side.</p></div><button class="icon-btn" data-act="close-sheet" aria-label="Close">✕</button></div>
+  return `<div class="card hud sheetcard" role="dialog" aria-label="Themes"><div class="section-hd"><div><h2>Themes</h2><p class="hint">Only changes the app for you.</p></div><button class="icon-btn" data-act="close-sheet" aria-label="Close">✕</button></div>
   <ul class="themelist">${THEMES.map(([k,n,d,bg,ac])=>`<li><button class="themeopt ${cur===k?'on':''}" data-act="theme-set" data-v="${k}" aria-pressed="${cur===k}"><span class="themeswatch" style="background:${bg}"><i style="background:${ac}"></i><i style="background:${ac}"></i></span><span><b>${n}</b><small>${d}</small></span>${cur===k?'<span class="themecheck" aria-hidden="true">✓</span>':''}</button></li>`).join('')}</ul>
   <button class="btn primary big" data-act="close-sheet">Done</button></div>`;
 }
@@ -246,6 +249,7 @@ function invitesView(co){
 
 /* Top bar + notifications. Client items are saved when the coach changes something; coach items come from what clients log. */
 const NBELL='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg>';
+// the list in the bell. Coaches get them from what clients do; clients get them from coach changes
 function notifications(){
   if(ui.user.role==='client'){const c=client(ui.user.id),cn=first(coach(c.coachId).name);
     const msgs=c.messages.filter(m=>m.from==='coach').slice(-5).map(m=>({ts:m.ts,text:`${cn} sent you a message.`,go:'chat'}));
@@ -269,7 +273,7 @@ function notifications(){
 const notifOwner=()=>ui.user.role==='client'?client(ui.user.id):coach(ui.user.id);
 function appBar(co){
   const read=notifOwner().notifRead||0,n=notifications().filter(x=>x.ts>read).length;
-  return `<div class="appbar">${brandMark(co,30)}<span class="appname">${esc(co.business||co.name)}</span><button class="barbtn" data-act="settings-open" aria-label="Settings" title="Settings">${GEAR}</button><button class="barbtn" data-act="notif-open" aria-label="Notifications${n?`, ${n} new`:''}" title="Notifications">${NBELL}${n?`<span class="barcount">${n>9?'9+':n}</span>`:''}</button></div>`;
+  return `<div class="appbar">${brandMark(co,30)}<span class="appname">${esc(co.business||co.name)}</span><button class="barbtn" data-act="search-open" aria-label="Search" title="Search (Ctrl K)">${SEARCH_ICON}</button><button class="barbtn" data-act="settings-open" aria-label="Settings" title="Settings">${GEAR}</button><button class="barbtn" data-act="notif-open" aria-label="Notifications${n?`, ${n} new`:''}" title="Notifications">${NBELL}${n?`<span class="barcount">${n>9?'9+':n}</span>`:''}</button></div>`;
 }
 function notifSheet(){
   const list=notifications(),prev=ui.notifPrev||0;
@@ -279,26 +283,33 @@ function notifSheet(){
 
 /* Settings: each person's own choices */
 const GEAR='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.800l-.1-.1a1.700 1.700 0 0 0-2.900 1.200V21a2 2 0 1 1-4 0v-.1a1.700 1.700 0 0 0-2.900-1.200l-.1.1a2 2 0 1 1-2.800-2.800l.1-.1a1.700 1.700 0 0 0-1.200-2.900H3a2 2 0 1 1 0-4h.1a1.700 1.700 0 0 0 1.200-2.900l-.1-.1a2 2 0 1 1 2.800-2.800l.1.1a1.700 1.700 0 0 0 2.900-1.200V3a2 2 0 1 1 4 0v.1a1.700 1.700 0 0 0 2.900 1.200l.1-.1a2 2 0 1 1 2.800 2.800l-.1.1a1.700 1.700 0 0 0 1.200 2.900h.1a2 2 0 1 1 0 4h-.1a1.700 1.700 0 0 0-1.500 1z"/></svg>'.replace(/(\d\.\d)00/g,'$1');
-const PREFS={autoTimer:true,extraRest:true,vibrate:true,energyAsk:true,nRoutine:true,nMeals:true,nMsgs:true,missAfter:3,defaultRest:90,showSummary:true,nWorkouts:true,nNotes:true,nEnergy:true,nJoins:true};
+const PREFS={ciDay:4,ciRemind:true,autoTimer:true,extraRest:true,vibrate:true,energyAsk:true,nRoutine:true,nMeals:true,nMsgs:true,missAfter:3,defaultRest:90,showSummary:true,nWorkouts:true,nNotes:true,nEnergy:true,nJoins:true};
+// reads one setting for a person, or the default above if they never changed it
 function pref(o,k){const v=o&&o.prefs?o.prefs[k]:undefined;return v===undefined?PREFS[k]:v}
+// the Settings page. tog = on/off switch, sel = dropdown, link = row that opens something
 function settingsView(){
-  const coachSide=ui.user.role==='coach',o=notifOwner();
+  const coachSide=ui.user.role==='coach',o=notifOwner(),past=coachSide?S.clients.filter(c=>c.coachId===o.id&&c.archived).length:0;
   const tog=(k,l,d)=>`<label class="optrow"><span><b>${l}</b>${d?`<small>${d}</small>`:''}</span><input type="checkbox" id="p-${k}" data-pref="${k}" ${pref(o,k)?'checked':''}></label>`;
   const sel=(k,l,d,opts)=>`<label class="optrow"><span><b>${l}</b>${d?`<small>${d}</small>`:''}</span><select id="p-${k}" data-pref="${k}" class="optsel">${opts.map(([v,t])=>`<option value="${v}" ${+pref(o,k)===v?'selected':''}>${t}</option>`).join('')}</select></label>`;
-  const link=(act,l,val)=>`<button class="optrow optlink" data-act="${act}"><span><b>${l}</b></span><span class="optval">${esc(val)} <i aria-hidden="true">›</i></span></button>`;
+  const link=(act,l,val,v='')=>`<button class="optrow optlink" data-act="${act}" ${v?`data-v="${v}"`:''}><span><b>${l}</b></span><span class="optval">${esc(val)} <i aria-hidden="true">›</i></span></button>`;
   const group=(t,rows)=>`<section class="optgroup"><h3>${t}</h3><div class="optcard">${rows}</div></section>`;
   const themeName=(THEMES.find(x=>x[0]===themeOf())||THEMES[0])[1];
-  const head=`<button class="back" data-act="settings-back">‹ Back</button><header class="hd"><h1>Settings</h1></header>`;
+  const head=`${backBtn(coachSide?'clients':'today','Back','settings-back')}<header class="hd"><h1>Settings</h1></header>`;
   if(coachSide)return head+`<form class="card hud" data-form="coach-profile"><h3>Profile</h3><label class="logodrop" for="set-logo">${o.logo?`<img src="${o.logo}" alt="Your logo">`:`<span class="mono">${initials(o.business||o.name)}</span>`}<span>${o.logo?'Change logo':'Add a logo'}</span><input type="file" id="set-logo" accept="image/*" data-setlogo></label>
     <div class="row2"><label>Your name<input id="set-name" name="name" value="${esc(o.name)}" required maxlength="40"></label><label>Business name<input id="set-biz" name="business" value="${esc(o.business||'')}" maxlength="40"></label></div><button class="btn">Save profile</button></form>`
     +group('Appearance',link('theme-open','Theme',themeName))
     +group('App',link('install-open','Add to home screen',isInstalled()?'Installed':''))
     +group('Clients',sel('missAfter','Flag a client in red after','Days without a workout, once they have also missed a planned one.',[[2,'2 days'],[3,'3 days'],[5,'5 days'],[7,'7 days']])+tog('showSummary','Weekly summary on Clients page','')+sel('defaultRest','Default rest for new exercises','You can still change it on each exercise.',[[60,'1:00'],[90,'1:30'],[120,'2:00'],[180,'3:00']]))
-    +group('Notifications',tog('nWorkouts','Finished workouts','')+tog('nNotes','Check-ins, notes and swaps','Weekly check-ins, form checks, workout notes, swaps and off-plan meals.')+tog('nMsgs','New messages','')+tog('nEnergy','Low energy days','')+tog('nJoins','Accepted invites',''));
+    +group('Check-ins',sel('ciDay','Check-in day','Clients see a reminder from this day until they send it.',[[4,'Friday'],[5,'Saturday'],[6,'Sunday'],[0,'Monday']]))
+    +group('Notifications',tog('nWorkouts','Finished workouts','')+tog('nNotes','Check-ins, notes and swaps','Weekly check-ins, form checks, workout notes, swaps and off-plan meals.')+tog('nMsgs','New messages','')+tog('nEnergy','Low energy days','')+tog('nJoins','Accepted invites',''))
+    +group('Your data',link('export-data','Download a backup','')+(past?link('show-past','Past clients',String(past),'clients'):''));
   const r=o.reminder||{on:false,time:'07:00'};
   return head+group('Profile',link('edit-myname','Your name',myName(o)))
     +group('Appearance',link('theme-open','Theme',themeName))
     +group('App',link('install-open','Add to home screen',isInstalled()?'Installed':''))
     +group('Workouts',link('rem-open','Workout reminders',r.on?fmt12(r.time):'Off')+tog('autoTimer','Start rest timer automatically','Starts after you confirm a set.')+tog('extraRest','Longer rests on tired days','Adds 30 to 60 seconds when your energy check is low.')+tog('vibrate','Vibrate when rest ends','')+tog('energyAsk','Ask how I feel before training','The daily energy check.'))
-    +group('Notifications',tog('nRoutine','Routine changes','')+tog('nMeals','Meal plan changes','')+tog('nMsgs','New messages',''));
+    +group('Check-ins',tog('ciRemind','Remind me to check in','A small reminder on Today, once a week.'))
+    +group('Notifications',tog('nRoutine','Routine changes','')+tog('nMeals','Meal plan changes','')+tog('nMsgs','New messages',''))
+    +group('Your coach',link('nav',`Message ${esc(first(coach(o.coachId).name))}`,'','chat'))
+    +group('Your data',link('export-data','Download my data',''));
 }

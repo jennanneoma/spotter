@@ -1,4 +1,7 @@
-/* Spotter: coach screens */
+/* ui-coach.js: everything the coach sees.
+   coachApp() picks the right page, then each function below draws one part of it:
+   the clients list, a client's page and tabs, the routine editor and the lifts tab. */
+// picks which coach page to show based on ui.view, and adds the top bar and tab bar
 function coachApp(){
   const co=coach(ui.user.id);let body;
   if(co.onboarded===false)return onboardingView(co);
@@ -11,6 +14,7 @@ function coachApp(){
   else body=clientsView(co);
   return appBar(co)+`<main class="screen">${body}</main>`+tabbar([["clients","Clients"],["invites","Invites"],["reports","Reports"],["templates","Templates"]],ui.view==='client'?'clients':ui.view);
 }
+// the small coloured tags on a client card, like "7 days since last workout"
 function alertsFor(c,st,ol){
   const a=[];
   if(st.missed)a.push(`<span class="pill bad">${st.missedLabel}</span>`);
@@ -22,6 +26,7 @@ function alertsFor(c,st,ol){
   const ta=toAnswer(c);if(ta)a.push(`<span class="pill acc">${ta} check-in${ta>1?'s':''} to answer</span>`);
   return a;
 }
+// the Clients page: summary at the top, then a card for each client
 function clientsView(co){
   const mine=S.clients.filter(c=>c.coachId===co.id);
   const invited=mine.filter(c=>!c.archived&&isInvited(c)),fresh=ui.invite&&mine.find(c=>c.id===ui.invite&&isInvited(c));
@@ -45,6 +50,7 @@ function clientsView(co){
     ${ui.confirm&&ui.confirm.id===c.id&&ui.confirm.kind==='delete'?`<span class="confirm-inline"><span class="bad-t">Delete forever?</span><button class="btn danger sm" data-act="delete-client" data-id="${c.id}">Delete</button><button class="btn ghost sm" data-act="cancel-confirm">Keep</button></span>`
     :`<span class="btnrow"><button class="btn sm" data-act="restore-client" data-id="${c.id}">Restore</button><button class="icon-btn" data-act="ask-delete" data-id="${c.id}">Delete</button></span>`}</li>`).join('')}</ul>`:''}</section>`:''}`;
 }
+// one client's page: their name, tags, and the tabs (Workouts, Lifts, Meals, Check-ins, Chat)
 function coachClient(co){
   const c=client(ui.clientId);
   if(!c||c.coachId!==co.id||c.archived){ui.view='clients';return clientsView(co)}
@@ -62,7 +68,7 @@ function coachClient(co){
   else if(ui.tab==='progress')body=coachCheckins(c)+`<h2>Body weight</h2>${weightChart(visW(c))}<h2>Body measurements</h2>${measurementsView(c,'coach')}<h2>Progress photos</h2>${photosHistory(c.photos.filter(p=>p.synced!==false))}`;
   else body=chatView(c,'coach');
   const cf=ui.confirm&&ui.confirm.id===c.id?ui.confirm.kind:null;
-  return `<div class="exbar"><button class="back" data-act="nav" data-v="clients">‹ Clients</button><span class="toplinks"><button class="icon-btn" data-act="edit-name" data-id="${c.id}">Edit details</button><span aria-hidden="true">·</span>${isInvited(c)?`<button class="icon-btn" data-act="inv-go" data-id="${c.id}">Manage invite</button>`:`<button class="icon-btn" data-act="ask-archive" data-id="${c.id}">Remove client</button>`}</span></div>
+  return `<div class="exbar">${backBtn('clients','Clients')}<span class="toplinks"><button class="icon-btn" data-act="edit-name" data-id="${c.id}">Edit details</button><span aria-hidden="true">·</span>${isInvited(c)?`<button class="icon-btn" data-act="inv-go" data-id="${c.id}">Manage invite</button>`:`<button class="icon-btn" data-act="ask-archive" data-id="${c.id}">Remove client</button>`}</span></div>
   ${cf==='archive'||cf==='delete'?`<div class="card hud danger-card" role="alertdialog" aria-label="Remove ${esc(c.name)}">
     <h2>Remove ${esc(first(c.name))}?</h2>
     <p class="muted"><b>Archive</b> when someone finishes their program. Their plans, workouts and photos are kept, they lose access to the app, and you can restore them anytime from Past clients.</p>
@@ -75,6 +81,7 @@ function coachClient(co){
   <div class="tabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${k===ui.tab}" class="${k===ui.tab?'on':''}" data-act="tab" data-v="${k}">${l}</button>`).join('')}</div>
   ${body}`;
 }
+// the Workouts tab: the current routine, the "change one day" dates, and recent workouts
 function coachWorkouts(c){
   const d=ui.drafts[c.id];if(d)return planEditor(c,d);
   if(ui.dayDraft&&ui.dayDraft.cid===c.id)return dayEditView(c);
@@ -85,9 +92,8 @@ function coachWorkouts(c){
     const inf=dayAt(c,today());
     const T=today(),wkNow=progWeek(c,T),from=c.plan.activeFrom||mondayOf(c.plan.startDate),future=from>T;
     if(inf.plan!==c.plan)inf.idx=-1;
-    out+=`<div class="weekbanner hud"><span class="mono">${wkNow>=1?'WEEK '+wkNow:'NOT STARTED'}</span><span>${wkNow>=1?weekRange(mondayOf(T)):`Starts ${fmtDate(from)}`}</span></div>`;
     if(future){const cur=planAt(c,T),wn=weekName(c,from);out+=`<div class="note-banner"><p>${cur?`This week ${esc(first(c.name))} is still on <b>${esc(cur.name)}</b>. `:''}The routine below starts on <b>${fmtDate(from)}</b>${wn?` (${wn})`:''}.</p></div>`}
-    out+=`<div class="section-hd"><div><p class="eyebrow">${future?`Starts ${fmtDate(from)}`:'Current routine'}</p><h2>${esc(c.plan.name)}</h2><p class="hint">Repeats every week</p></div><div class="btnrow"><button class="btn" data-act="new-plan">New routine</button><button class="btn primary" data-act="edit-plan">Edit routine</button></div></div>
+    out+=`<div class="routine-hd"><div><p class="eyebrow">${future?`Starts ${fmtDate(from)}`:wkNow>=1?`Routine · Week ${wkNow}`:'Routine'}</p><h2>${esc(c.plan.name)}</h2></div><div class="routine-btns"><button class="btn ghost sm" data-act="new-plan">New</button><button class="btn primary sm" data-act="edit-plan">Edit</button></div></div>
     ${dateStrip(c)}
     <ol class="plan-days">${c.plan.days.map((day,i)=>`<li class="${inf.idx===i?'today':''}"><span class="dn mono">${WK[i].toUpperCase()}</span><span class="dd"><b>${esc(dayTitle(day))}${inf.idx===i?' <span class="pill acc">Today</span>':''}</b>${day.rest?'':day.exercises.map(r=>`<span class="pl-ex">${thumb(exById(r.exId))}<span class="pl-txt"><b>${esc(exById(r.exId).name)}</b><small>${repsText(r.sets,r.reps)}${weightText(r,today(),c.plan)?` · ${weightText(r,today(),c.plan)}`:""}${progTag(r)?` <i class="auto">${progTag(r)}</i>`:""}</small></span></span>`).join('')||'<small>No exercises yet</small>'}</span></li>`).join('')}</ol>`;
   }
@@ -108,21 +114,23 @@ function planChooser(c){
   <div><h3>Copy another client's routine</h3><div class="choice-list">${others.length?others.map(o=>`<button class="choice" data-act="plan-copy" data-id="${o.id}"><span><b>${esc(o.name)}</b><br><small>${esc(o.plan.name)} · ${o.plan.days.length} days</small></span><span>›</span></button>`).join(''):'<p class="hint">None of your other clients have a plan yet.</p>'}</div></div></div>`;
 }
 function recentWorkouts(c){
-  const logs=visLogs(c).slice().sort((a,b)=>b.finishedAt-a.finishedAt).slice(0,6);
-  if(!logs.length)return'';
+  const all=visLogs(c).slice().sort((a,b)=>b.finishedAt-a.finishedAt).slice(0,6),logs=ui.recentAll?all:all.slice(0,3),more=all.length-3;
+  if(!all.length)return'';
   return `<div class="section-hd"><h2>Recent workouts</h2><button class="linkbtn" data-act="open-report" data-id="${c.id}" data-tab="history">Open calendar ›</button></div><div class="logs">${logs.map((l,i)=>{const fresh=Date.now()-l.finishedAt<36e5;return `<details class="log" ${i===0&&fresh?'open':''}><summary><span><b>${esc(l.dayName)}</b><br><span class="hint">${fmtDate(l.date)} · ${fmtClock(l.finishedAt)}${l.durationMin?` · ${l.durationMin} min`:''}${l.rpe?` · effort ${l.rpe}/10`:''}</span>${hasNotes(l)?`<br><span class="notetag">${ui.seenBefore&&ui.seenBefore.id===c.id&&l.finishedAt>ui.seenBefore.t?'NEW · ':''}Note from ${esc(first(c.name))}</span>`:''}</span><span class="hint right">${fresh?'<span class="new-badge">JUST NOW</span><br>':''}${l.prs&&l.prs.length?`<span class="pill ok">${l.prs.length} PR</span>`:`${l.entries.reduce((n,e)=>n+e.sets.length,0)} sets`}</span></summary>
-  <div class="lbody">${l.entries.map(e=>`<div><span class="exn">${thumb(exById(e.exId))}<span>${esc(exById(e.exId).name)}${swappedLabel(e)}</span>${l.prs&&l.prs.includes(e.exId)?' <i class="auto">PR</i>':''}</span><span class="mono">${setsText(e.sets)}</span></div>`).join('')}${logNotes(l)}</div></details>`}).join('')}</div>`;
+  <div class="lbody">${l.entries.map(e=>`<div><span class="exn">${thumb(exById(e.exId))}<span>${esc(exById(e.exId).name)}${swappedLabel(e)}</span>${l.prs&&l.prs.includes(e.exId)?' <i class="auto">PR</i>':''}</span><span class="mono">${setsText(e.sets)}</span></div>`).join('')}${logNotes(l)}</div></details>`}).join('')}</div>${more>0?`<button class="morebtn" data-act="recent-all" aria-expanded="${!!ui.recentAll}">${ui.recentAll?'Show fewer ▴':`Show ${more} more ▾`}</button>`:''}`;
 }
 const cycleHint=d=>{const t=d.days.filter(x=>!x.rest).length;return `${t} training day${t===1?'':'s'} a week, Monday to Sunday. Starts the week of ${d.startDate?fmtDate(mondayOf(d.startDate)):'the start date'}.`};
+// the routine editor: name, start week, and one card per day of the week
 function planEditor(c,d){
   return `<section class="editor">
   <div><p class="eyebrow">${!c.plan?'First routine':weekName(c,today())?`Now in ${weekName(c,today())}`:'Not started yet'}</p><h2>${d.isNew?'New routine':'Edit routine'}</h2><p class="hint">${esc(first(c.name))} sees it after you tap Save routine. Earlier weeks stay saved.</p></div>
   <div class="card hud"><div class="row2"><label>Routine name<input id="pf-name" data-pf="name" value="${esc(d.name)}"></label>${c.plan&&(!(c.plan.activeFrom>today())||(c.planHistory||[]).length)?`<div class="whenbox"><span class="whenlabel">Starts</span><div class="whenseg" role="group" aria-label="When this routine starts">${[['this','This week'],['next','Next week']].map(([v,l])=>`<button class="${(ui.saveWhen||'this')===v?'on':''}" data-act="routine-when" data-v="${v}" aria-pressed="${(ui.saveWhen||'this')===v}">${l}</button>`).join('')}</div></div>`:`<label>Start date<input id="pf-start" type="date" data-pf="startDate" value="${d.startDate}"></label>`}</div><p class="hint" id="cycle-hint">${c.plan&&(!(c.plan.activeFrom>today())||(c.planHistory||[]).length)?`${d.days.filter(x=>!x.rest).length} training days a week. Monday to Sunday.`:cycleHint(d)}</p></div>
-  <p class="hint">Tap a day to open it. Give each training day a title, like Upper body or Legs.</p>
+  
   ${d.days.map((day,i)=>dayEditor(c,day,i)).join('')}
   <div class="savebar"><button class="btn ghost" data-act="discard">Discard</button><button class="btn" data-act="save-template">Save as template</button><button class="btn primary" data-act="save-plan">Save routine</button></div></section>`;
 }
 function openDayId(){const d=curDraft();if(!d)return null;if(ui.openDay===''||d.days.some(x=>x.id===ui.openDay))return ui.openDay;const t=d.days.find(x=>!x.rest)||d.days[0];return t&&t.id}
+// one day inside the editor: its exercises with sets, reps, weight and rest
 function dayEditor(c,day,i,one){
   const tools=`<div class="day-tools"><button class="${day.rest?'btn sm':'icon-btn'}" data-act="toggle-rest" data-day="${day.id}">${day.rest?'Make it a training day':'Make it a rest day'}</button>${day.rest||one?'':`<span class="copyto-inline"><span class="hint">Copy to</span>${WK.map((w,j)=>j===i?'':`<button class="chip" data-act="copy-day-to" data-day="${day.id}" data-to="${j}">${w}</button>`).join('')}</span>`}</div>`;
   const hd=`<div class="day-hd"><span class="daynum mono">${WK[i].toUpperCase()}</span><span class="dh-name">${day.rest?'<small>Rest day</small>':`<input class="dayname" id="dn-${day.id}" data-df="name" data-day="${day.id}" value="${esc(day.name)}" placeholder="Name this day, e.g. Upper body" aria-label="What is trained on ${WKL[i]}">`}</span>${one?'':`<button class="icon-btn chev-btn" data-act="open-day" data-day="" aria-expanded="true" aria-label="Collapse ${WKL[i]}">▴</button>`}</div>`;
@@ -139,6 +147,7 @@ function dayEditor(c,day,i,one){
   </li>`}).join('')}</ol>
   <div class="adder"><div class="adder-row"><input type="search" id="s-${day.id}" data-search="${day.id}" placeholder="Search exercises or type a new one" autocomplete="off" aria-label="Add exercise to ${esc(day.name)}"><button class="addbtn" data-act="add-typed" data-day="${day.id}" aria-label="Add exercise" title="Add exercise">+</button></div><div class="results" id="r-${day.id}"></div></div>${tools}</section>`;
 }
+// the "how should the weight change?" choice under each exercise
 function progEditor(c,r,a){
   const p=progOf(r),plan=curDraft()||c.plan,bw=!hasW(r.weight);
   const num=(f,v,label,w='')=>`<input class="mini mono ${w}" id="pg${f}-${r.id}" inputmode="decimal" data-pg="${f}" ${a} value="${esc(v)}" aria-label="${label}">`;
@@ -151,12 +160,14 @@ function progEditor(c,r,a){
     ${line&&!bw?`<div class="progrow">${line}</div>`:''}
     <p class="progline" id="pp-${r.id}" ${progSentence(r,plan)?'':'hidden'}>${progSentence(r,plan)}</p></div>`;
 }
+// results for the "search exercises or type a new one" box in the editor
 function searchResults(dayId,q){
   q=q.trim();if(!q)return'';const ql=q.toLowerCase();
   const m=S.exercises.filter(e=>e.name.toLowerCase().includes(ql)||e.group.toLowerCase()===ql).sort((a,b)=>a.name.toLowerCase().indexOf(ql)-b.name.toLowerCase().indexOf(ql)).slice(0,6);
   const exact=S.exercises.some(e=>e.name.toLowerCase()===ql);
   return m.map(e=>`<button data-act="add-ex" data-day="${dayId}" data-ex="${e.id}"><span class="exn">${thumb(e)}<span>${esc(e.name)}</span></span><small>${esc(e.group)}</small></button>`).join('')+(exact?'':`<button class="new" data-act="add-new-ex" data-day="${dayId}" data-name="${esc(q)}">+ Add “${esc(q)}” as a new exercise</button>`);
 }
+// the Lifts tab: is each exercise going up, staying the same or going down
 function overloadView(c,role){
   const o=overloadSummary(c);
   if(!o.items.length)return `<p class="hint">No lifts to track yet. Add a routine first.</p>`;
@@ -165,7 +176,7 @@ function overloadView(c,role){
   const row=r=>{const ex=exById(r.id),last=r.h[r.h.length-1],ss=sinceStart(r.h),pr=planRow(c,r.id);return `<li><button class="olrow" data-act="ol-ex" data-id="${r.id}">${thumb(ex)}<span class="olname"><span class="oltop"><b>${esc(ex.name)}</b>${statusPill(r.st)}</span><small>${last?`Last time: ${setsText(last.sets)}`:'Not done yet'}</small>${ss?`<small class="up-t">Since start: ${ss.replace(/ since .*$/,'')}</small>`:''}${pr&&hasW(pr.weight)?`<small>Next workout: ${weightText(pr,today(),c.plan)}</small>`:''}</span></button></li>`};
   const order={pr:0,up:1,same:2,down:3,new:4};
   return `<div class="hudrow"><div class="tile hud"><small>Personal bests</small><b class="mono">${o.pr}</b></div><div class="tile hud"><small>Going up</small><b class="mono">${o.up}</b></div><div class="tile hud"><small>Same or lower</small><b class="mono">${o.same+o.down}</b></div></div>
-  <p class="hint">Each lift compares the last session with the one before: heavier weight, more reps, the same, or less.</p>
+  
   ${progs.length?`<div class="card hud feed"><span class="eyebrow">Weight increases</span>${progs.map(p=>`<div class="feeditem"><span>${esc(exById(p.exId).name)}</span><span class="mono">${kg(p.from)} → <b>${kg(p.to)} kg</b></span><small>${rel(p.date)}</small></div>`).join('')}</div>`:''}
   <ul class="olist">${o.items.sort((a,b)=>order[a.st.key]-order[b.st.key]).map(row).join('')}</ul>`;
 }
@@ -173,7 +184,7 @@ function planRow(c,exId){if(c.plan)for(const d of c.plan.days)for(const r of d.e
 function overloadDetail(c,exId){
   const ex=exById(exId),h=exHistory(c,exId,ui.user.role==='client'),pr=planRow(c,exId),st=overload(h),weighted=h.some(x=>x.top!=null),ss=sinceStart(h);
   let best=-1;const pts=h.map(x=>{const v=weighted?(x.top??0):x.reps,isPr=v>best;if(isPr)best=v;return{date:x.date,v,pr:isPr&&h.length>1}});
-  return `<button class="back" data-act="ol-back">‹ All lifts</button>
+  return `${backBtn('','All lifts','ol-back')}
   <div class="section-hd"><div><h2>${esc(ex.name)}</h2><p class="hint">${pr?targetsLine(pr,c):""}</p></div>${statusPill(st)}</div>
   ${pr&&hasW(pr.weight)?`<p class="progline">${progSentence(pr,c.plan,ui.user.role)}</p>`:''}
   ${ss?`<p class="bigstat"><b class="mono">${ss.split(' since ')[0]}</b><span>since ${ss.split(' since ')[1]}</span></p>`:''}
@@ -185,9 +196,9 @@ function overloadDetail(c,exId){
 /* One date only: a slim row of dates above the routine; tapping one edits just that day (saved in c.dayEdits) */
 function dateStrip(c){
   const T=today(),m0=mondayOf(T),mon=ui.stripMon&&ui.stripMon>=m0?ui.stripMon:m0,max=addDays(m0,7*8),edits=c.dayEdits||{};
-  const chips=Array.from({length:7},(_,i)=>{const d=addDays(mon,i),inf=dayAt(c,d),ok=d>=T&&!!inf.day,type=edits[d]?'CHANGED':inf.day?(inf.day.rest?'REST':'TRAIN'):'';
-    return `<button class="wchip ${d===T?'today':''} ${edits[d]?'edited':''}" ${ok?`data-act="day-edit" data-v="${d}"`:'disabled'} aria-label="${fmtDate(d)}${inf.day?`: ${esc(dayTitle(inf.day))}`:''}${edits[d]?', changed for this day':''}"><span>${WK[i]}</span><b class="mono">${+d.slice(8)}</b><i>${type}</i></button>`}).join('');
-  return `<div class="datestrip"><div class="ds-hd"><span class="eyebrow">Change one day</span><span class="ds-nav"><button class="icon-btn" data-act="strip-week" data-v="-1" ${mon<=m0?'disabled':''} aria-label="Earlier week">‹</button><span class="mono">${weekRange(mon)}</span><button class="icon-btn" data-act="strip-week" data-v="1" ${mon>=max?'disabled':''} aria-label="Later week">›</button></span></div><div class="weekchips">${chips}</div></div>`;
+  const chips=Array.from({length:7},(_,i)=>{const d=addDays(mon,i),inf=dayAt(c,d),ok=d>=T&&!!inf.day,kind=edits[d]?'changed':inf.day?(inf.day.rest?'rest':'train'):'';
+    return `<button class="wchip ${d===T?'today':''} ${edits[d]?'edited':''}" ${ok?`data-act="day-edit" data-v="${d}"`:'disabled'} aria-label="${fmtDate(d)}${inf.day?`: ${esc(dayTitle(inf.day))}`:''}${edits[d]?', changed for this day':''}"><span>${WK[i]}</span><b class="mono">${+d.slice(8)}</b><i class="ds-dot ${kind}" aria-hidden="true"></i></button>`}).join('');
+  return `<div class="datestrip"><div class="ds-hd"><span class="ds-title"><span class="eyebrow">Change one day</span></span><span class="ds-nav"><button class="icon-btn" data-act="strip-week" data-v="-1" ${mon<=m0?'disabled':''} aria-label="Earlier week">‹</button><span class="mono">${weekRange(mon)}</span><button class="icon-btn" data-act="strip-week" data-v="1" ${mon>=max?'disabled':''} aria-label="Later week">›</button></span></div><div class="weekchips">${chips}</div></div>`;
 }
 // "Every Saturday" only makes sense for a weekly routine that is the one running on that date
 const canApplyAll=(c,d)=>!!(c.plan&&c.plan.days.length===7&&planAt(c,d)===c.plan);
