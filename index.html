@@ -956,6 +956,49 @@ button,a,label,input,select,textarea{touch-action:manipulation;-webkit-tap-highl
   .statnote{padding:12px 14px}
 }
 @media (min-width:350px) and (max-width:400px){.cstats{grid-template-columns:repeat(3,1fr)!important;gap:10px}.cstats div:last-child{grid-column:auto!important}}
+/* ---------- client photos, client header and the client settings sheet ---------- */
+.avatar{overflow:hidden}
+.avatar img,.whobtn span img{width:100%;height:100%;object-fit:cover;display:block}
+.whobtn span{overflow:hidden}
+.chead{display:grid;grid-template-columns:auto 1fr;align-items:center;column-gap:16px;row-gap:12px}
+.chead h1{min-width:0;overflow-wrap:anywhere}
+.chead .sub{grid-column:1/-1;margin:0}
+.exbar .back{align-self:center}
+.exbar .iconbtn{width:34px;height:34px}
+.exbar .iconbtn svg{width:17px;height:17px}
+.cs-who{display:flex;align-items:center;gap:12px}
+.cs-form{display:flex;flex-direction:column;gap:14px}
+.cs-form .btn{align-self:flex-start}
+.danger-row b{color:var(--bad)}
+.optrow>.pic-row:first-child{display:flex;flex-direction:row;align-items:center;gap:12px}
+.pic-row .avatar{width:34px;height:34px}
+
+/* ---------- the routine editor, kept slim ---------- */
+.ed-hd{display:flex;flex-direction:column;gap:10px}
+.routine-hd>div:first-child{gap:9px}
+.exrow{padding:14px;gap:12px}
+.thumbbtn{background:none;border:0;padding:0;flex:none;display:block}
+.ex-hd{gap:10px}
+.ex-hd .thumb{width:38px;height:38px}
+.exname{gap:4px}
+.exname>span{margin-top:0}
+.exname small .pill{font-size:.58rem;padding:1px 5px}
+.exlink{line-height:1.25}
+.rowbtns .icon-btn{padding:4px 5px}
+.exrow .ex-fields{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.ex-fields label{font-size:.62rem}
+.ex-fields input{padding:7px 8px!important}
+.progbox{border-top:0;padding-top:0;gap:8px}
+.progtop{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.progsel{flex-direction:row;align-items:center;gap:8px}
+.progsel select{width:auto;padding:6px 8px;font-size:.84rem}
+.progsel select:disabled{opacity:.45}
+.progline{font-size:.72rem}
+@media (max-width:520px){
+  .grip{display:none}
+  .chead{column-gap:12px}
+  .savebar .btn{white-space:nowrap;padding:10px;font-size:.78rem;letter-spacing:.06em}
+}
 </style>
 
 <div id="app"></div>

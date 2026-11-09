@@ -103,15 +103,15 @@ function searchGroups(q){
 
   // nothing typed yet: show a few handy shortcuts
   if(!q){
-    if(coachSide)add('Clients',mine.slice(0,4).map(c=>({t:c.name,s:c.goal||'',to:'open-client',id:c.id,ic:'av',av:initials(c.name)})));
+    if(coachSide)add('Clients',mine.slice(0,4).map(c=>({t:c.name,s:c.goal||'',to:'open-client',id:c.id,ic:'av',av:avatarOf(c)})));
     add('Jump to',searchPages().filter(p=>!p.s).slice(0,coachSide?5:6));
     return groups;
   }
   if(coachSide){
-    add('Clients',mine.filter(c=>hit(c.name+' '+(c.goal||''),q)).map(c=>({t:c.name,s:c.goal||'',to:'open-client',id:c.id,ic:'av',av:initials(c.name)})));
+    add('Clients',mine.filter(c=>hit(c.name+' '+(c.goal||''),q)).map(c=>({t:c.name,s:c.goal||'',to:'open-client',id:c.id,ic:'av',av:avatarOf(c)})));
     // typed a section name? offer that section for each client
     const tab=CLIENT_TABS.find(([,l,k])=>hit(l+' '+k,q));
-    if(tab)add(tab[1],mine.slice(0,5).map(c=>({t:`${first(c.name)} · ${tab[1]}`,s:'',to:'open-client',id:c.id,then:`tab=${tab[0]}`,ic:'av',av:initials(c.name)})));
+    if(tab)add(tab[1],mine.slice(0,5).map(c=>({t:`${first(c.name)} · ${tab[1]}`,s:'',to:'open-client',id:c.id,then:`tab=${tab[0]}`,ic:'av',av:avatarOf(c)})));
   }
   add('Pages and settings',searchPages().filter(p=>hit(p.t+' '+p.k+' '+(p.s||''),q)));
   // exercises: the coach sees the whole library, a client only what's in their plan
@@ -134,7 +134,7 @@ function searchGroups(q){
 function appSearchResults(q){
   const groups=searchGroups(q);
   if(!groups.length)return `<p class="gs-empty">Nothing matches “${esc(q.trim())}”.</p>`;
-  const icon=r=>r.ic==='av'?`<span class="avatar">${r.av}</span>`:r.ic==='ex'?thumb(r.ex):`<span class="gs-ic">${r.ic==='chat'?CHAT_ICON:GO_ICON}</span>`;
+  const icon=r=>r.ic==='av'?r.av:r.ic==='ex'?thumb(r.ex):`<span class="gs-ic">${r.ic==='chat'?CHAT_ICON:GO_ICON}</span>`;
   const qq=q.trim().toLowerCase();
   return groups.map(([title,items])=>`<section class="gs-group"><h4>${title}</h4>${items.map(r=>`<button class="gs-row" data-act="gs-go" data-to="${r.to}" ${r.id?`data-id="${r.id}"`:''} ${r.v?`data-v="${r.v}"`:''} ${r.then?`data-then="${r.then}"`:''}>${icon(r)}<span class="gs-txt"><b>${mark(r.t,qq)}</b>${r.s?`<small>${esc(r.s)}</small>`:''}</span></button>`).join('')}</section>`).join('');
 }

@@ -201,7 +201,7 @@ function weeklySummaryView(co){
         ${w.swaps.map(s=>`<p class="hint">Swapped on ${fmtDate(s.date)}: <b>${esc(exById(s.to).name)}</b> instead of ${esc(exById(s.from).name)}.</p>`).join('')}
         ${w.notes.map(l=>logNotes(l)).join('')}
         <button class="btn primary sm" data-act="open-report" data-id="${c.id}">Open full report ›</button>`;
-    return `<li class="cweek ${open?'open':''}"><button class="cw-head" data-act="sum-open" data-id="${c.id}" aria-expanded="${open}"><span class="avatar">${initials(c.name)}</span><span class="cw-name"><b>${esc(c.name)}</b><span class="cw-st ${st.cls}"><i aria-hidden="true">${st.icon}</i> ${st.text}</span></span><span class="cw-badges">${badges}</span><span class="chev" aria-hidden="true">${open?'▴':'▾'}</span></button>${open?`<div class="cw-body">${body}</div>`:''}</li>`};
+    return `<li class="cweek ${open?'open':''}"><button class="cw-head" data-act="sum-open" data-id="${c.id}" aria-expanded="${open}">${avatarOf(c)}<span class="cw-name"><b>${esc(c.name)}</b><span class="cw-st ${st.cls}"><i aria-hidden="true">${st.icon}</i> ${st.text}</span></span><span class="cw-badges">${badges}</span><span class="chev" aria-hidden="true">${open?'▴':'▾'}</span></button>${open?`<div class="cw-body">${body}</div>`:''}</li>`};
   return `<section class="card hud summary"><div class="section-hd"><div class="sum-hd"><h2>Weekly summary</h2><p class="hint">${weekRange(mon)}</p></div>
     <div class="chips" role="group" aria-label="Which week"><button class="chip ${which==='last'?'on':''}" data-act="sum-week" data-v="last">Last week</button><button class="chip ${which==='this'?'on':''}" data-act="sum-week" data-v="this">This week</button></div></div>
     <p class="sumline">${esc(funSummary(W,which))}</p>
@@ -209,6 +209,15 @@ function weeklySummaryView(co){
 }
 /* Names: c.name is what the coach calls the client; c.selfName is what the client calls themselves (client app only) */
 const myName=c=>c.selfName||c.name;
+// a client's round picture, or their initials when they haven't added one
+function avatarOf(c,cls=''){return `<span class="avatar ${cls}">${c&&c.avatar?`<img src="${c.avatar}" alt="">`:initials(c?c.name:'')}</span>`}
+// the coach's settings for one client: name, goal, and remove
+function clientSheet(c){
+  if(!c)return'';
+  return `<div class="card hud sheetcard csheet" role="dialog" aria-label="${esc(c.name)} settings"><div class="section-hd"><div class="cs-who">${avatarOf(c)}<h2>${esc(first(c.name))}</h2></div><button class="icon-btn" data-act="close-sheet" aria-label="Close">✕</button></div>
+    <form data-form="edit-client" class="cs-form"><label>Name<input id="ec-name" name="name" value="${esc(c.name)}" required maxlength="40"></label><label>Goal<input id="ec-goal" name="goal" value="${esc(c.goal||'')}" maxlength="80" placeholder="e.g. Build muscle"></label>${c.selfName&&c.selfName!==c.name?`<p class="hint">They go by “${esc(c.selfName)}” in their own app.</p>`:''}<button class="btn primary">Save</button></form>
+    <div class="optcard">${isInvited(c)?`<button class="optrow optlink" data-act="inv-go" data-id="${c.id}"><span><b>Manage invite</b></span><span class="optval"><i aria-hidden="true">›</i></span></button>`:''}<button class="optrow optlink danger-row" data-act="ask-archive" data-id="${c.id}"><span><b>Remove client</b></span><span class="optval"><i aria-hidden="true">›</i></span></button></div></div>`;
+}
 function nameSheet(c){
   return `<form class="card hud sheetcard" data-form="my-name" role="dialog" aria-label="Your name"><div class="section-hd"><h2>Your name</h2><button type="button" class="icon-btn" data-act="close-sheet" aria-label="Close">✕</button></div>
     <p class="hint">Only changes it on your phone.</p>
@@ -236,7 +245,7 @@ function invitesView(co){
   const mine=S.clients.filter(c=>c.coachId===co.id&&!c.archived);
   const pending=mine.filter(isInvited).sort((a,b)=>a.invitedAt<b.invitedAt?-1:1),joined=mine.filter(c=>!isInvited(c)).sort((a,b)=>(b.joinedAt||'')<(a.joinedAt||'')?-1:1);
   const row=c=>{const open=ui.invOpen===c.id,age=daysBetween(c.invitedAt,today()),del=ui.confirm&&ui.confirm.id===c.id&&ui.confirm.kind==='cancelinv';
-    return `<li class="invrow ${open?'open':''}"><button class="invhead" data-act="inv-open" data-id="${c.id}" aria-expanded="${open}"><span class="avatar dim">${initials(c.name)}</span><span class="cname">${esc(c.name)}<small>Sent ${rel(c.invitedAt).toLowerCase()}${age>=7?' · worth a reminder':''}</small></span><span class="pill ${age>=7?'warn':''}">Pending</span><span class="chev" aria-hidden="true">${open?'▴':'▾'}</span></button>
+    return `<li class="invrow ${open?'open':''}"><button class="invhead" data-act="inv-open" data-id="${c.id}" aria-expanded="${open}">${avatarOf(c,'dim')}<span class="cname">${esc(c.name)}<small>Sent ${rel(c.invitedAt).toLowerCase()}${age>=7?' · worth a reminder':''}</small></span><span class="pill ${age>=7?'warn':''}">Pending</span><span class="chev" aria-hidden="true">${open?'▴':'▾'}</span></button>
     ${open?`<div class="invbody"><div class="linkbox"><span class="mono" id="link-${c.id}">${inviteLink(c).replace('https://','')}</span><button class="btn sm" data-act="copy-invite" data-id="${c.id}">Copy link</button></div>
       <div class="btnrow"><a class="btn primary" href="https://wa.me/?text=${encodeURIComponent(inviteMsg(c,co))}" target="_blank" rel="noopener">Send on WhatsApp</a><button class="btn" data-act="copy-invite" data-id="${c.id}" data-msg="1">Copy message</button></div>
       ${del?`<div class="confirm-inline"><span class="bad-t">Cancel this invite? The link stops working${c.plan||c.meals?' and the routine you built is removed':''}.</span><button class="btn danger sm" data-act="inv-cancel" data-id="${c.id}">Cancel invite</button><button class="btn ghost sm" data-act="cancel-confirm">Keep</button></div>`
@@ -244,7 +253,7 @@ function invitesView(co){
   return `<header class="hd"><h1>Invites</h1><p class="sub">${pending.length?`${pending.length} waiting to join`:'Nobody waiting to join'}, ${joined.length} joined.</p></header>
   <form class="card hud" data-form="add-client"><h3>Invite a client</h3><div class="row2"><label>Name<input id="nc-name" name="name" required placeholder="e.g. Taylor Brooks" maxlength="40"></label><label>Goal (optional)<input id="nc-goal" name="goal" placeholder="e.g. Lose 5 kg" maxlength="80"></label></div><button class="btn primary">Create invite link</button></form>
   <section class="rsec"><h2>Pending</h2>${pending.length?`<ul class="invlist">${pending.map(row).join('')}</ul>`:'<p class="hint">No pending invites.</p>'}</section>
-  <section class="rsec"><h2>Joined</h2>${joined.length?`<ul class="invlist">${joined.map(c=>`<li class="invrow"><button class="invhead" data-act="open-client" data-id="${c.id}"><span class="avatar">${initials(c.name)}</span><span class="cname">${esc(c.name)}<small>${c.joinedAt?`Joined ${fmtShort(c.joinedAt)}`:'Joined'}</small></span><span class="chev" aria-hidden="true">›</span></button></li>`).join('')}</ul>`:'<p class="hint">Clients appear here once they create their account.</p>'}</section>`;
+  <section class="rsec"><h2>Joined</h2>${joined.length?`<ul class="invlist">${joined.map(c=>`<li class="invrow"><button class="invhead" data-act="open-client" data-id="${c.id}">${avatarOf(c)}<span class="cname">${esc(c.name)}<small>${c.joinedAt?`Joined ${fmtShort(c.joinedAt)}`:'Joined'}</small></span><span class="chev" aria-hidden="true">›</span></button></li>`).join('')}</ul>`:'<p class="hint">Clients appear here once they create their account.</p>'}</section>`;
 }
 
 /* Top bar + notifications. Client items are saved when the coach changes something; coach items come from what clients log. */
@@ -304,7 +313,8 @@ function settingsView(){
     +group('Notifications',tog('nWorkouts','Finished workouts','')+tog('nNotes','Check-ins, notes and swaps','Weekly check-ins, form checks, workout notes, swaps and off-plan meals.')+tog('nMsgs','New messages','')+tog('nEnergy','Low energy days','')+tog('nJoins','Accepted invites',''))
     +group('Your data',link('export-data','Download a backup','')+(past?link('show-past','Past clients',String(past),'clients'):''));
   const r=o.reminder||{on:false,time:'07:00'};
-  return head+group('Profile',link('edit-myname','Your name',myName(o)))
+  const pic=`<label class="optrow optlink" for="my-pic"><span class="pic-row">${avatarOf(o)}<b>Profile picture</b></span><span class="optval">${o.avatar?'Change':'Add'} <i aria-hidden="true">›</i></span><input type="file" id="my-pic" accept="image/*" data-mypic hidden></label>`+(o.avatar?`<button class="optrow optlink" data-act="pic-remove"><span><b>Remove picture</b></span></button>`:'');
+  return head+group('Profile',pic+link('edit-myname','Your name',myName(o)))
     +group('Appearance',link('theme-open','Theme',themeName))
     +group('App',link('install-open','Add to home screen',isInstalled()?'Installed':''))
     +group('Workouts',link('rem-open','Workout reminders',r.on?fmt12(r.time):'Off')+tog('autoTimer','Start rest timer automatically','Starts after you confirm a set.')+tog('extraRest','Longer rests on tired days','Adds 30 to 60 seconds when your energy check is low.')+tog('vibrate','Vibrate when rest ends','')+tog('energyAsk','Ask how I feel before training','The daily energy check.'))
