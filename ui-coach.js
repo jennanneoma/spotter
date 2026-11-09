@@ -67,13 +67,7 @@ function coachClient(co){
   else if(ui.tab==='meals')body=coachMeals(c);
   else if(ui.tab==='progress')body=coachCheckins(c)+`<h2>Body weight</h2>${weightChart(visW(c))}<h2>Body measurements</h2>${measurementsView(c,'coach')}<h2>Progress photos</h2>${photosHistory(c.photos.filter(p=>p.synced!==false))}`;
   else body=chatView(c,'coach');
-  const cf=ui.confirm&&ui.confirm.id===c.id?ui.confirm.kind:null;
   return `<div class="exbar">${backBtn('clients','Clients')}<button class="iconbtn" data-act="client-set" data-id="${c.id}" aria-label="${esc(first(c.name))}'s settings" title="Client settings">${GEAR}</button></div>
-  ${cf==='archive'||cf==='delete'?`<div class="card hud danger-card" role="alertdialog" aria-label="Remove ${esc(c.name)}">
-    <h2>Remove ${esc(first(c.name))}?</h2>
-    <p class="muted"><b>Archive</b> when someone finishes their program. Their plans, workouts and photos are kept, they lose access to the app, and you can restore them anytime from Past clients.</p>
-    ${cf==='delete'?`<p class="bad-t">Deleting removes ${esc(first(c.name))} and all their history for good. This can't be undone.</p><div class="btnrow"><button class="btn danger" data-act="delete-client" data-id="${c.id}">Delete forever</button><button class="btn ghost" data-act="cancel-confirm">Cancel</button></div>`
-    :`<div class="btnrow"><button class="btn primary" data-act="archive-client" data-id="${c.id}">Archive client</button><button class="btn" data-act="ask-delete" data-id="${c.id}">Delete instead</button><button class="btn ghost" data-act="cancel-confirm">Cancel</button></div>`}</div>`:''}
   ${isInvited(c)?`<div class="note-banner"><p>${esc(first(c.name))} hasn't joined yet. Build their routine and meals now, and they'll be ready when they do.</p></div>`:''}
   <div class="chead">${avatarOf(c,'big')}<h1>${esc(c.name)}</h1><p class="sub">${esc(c.goal||'No goal set')}</p></div>
   <div class="chips-row">${readyPill(st.ready)}${alertsFor(c,st,overloadSummary(c)).join('')}</div>

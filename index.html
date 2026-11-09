@@ -428,7 +428,8 @@ textarea:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(
 .cwsnap b{font-size:1.15rem;color:var(--accent)}
 .cwsnap i{font-style:normal;font-size:.72rem;color:var(--muted)}
 .target b{white-space:nowrap}
-.tsub{font-family:var(--mono);font-size:.68rem;color:var(--muted);white-space:nowrap}
+.tsub{font-family:var(--mono);font-size:.68rem;color:var(--muted);overflow-wrap:anywhere}
+.target small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* workout lines: exercise name on top, what was lifted underneath */
 .log .lbody>div:not(.lognote){display:flex!important;flex-direction:column;align-items:flex-start!important;gap:4px;justify-content:flex-start!important}
 .log .lbody>div:not(.lognote)>span:last-child{text-align:left!important;font-family:var(--body)!important;font-size:.84rem!important;color:var(--muted)}
@@ -839,7 +840,7 @@ i.next{border:1px solid var(--line2)}
 .lib small{font-weight:400;color:var(--muted);font-size:.72rem}
 .vidbadge{width:54px;height:54px;border-radius:2px;background:var(--accent-soft);border:1px solid var(--accent-dim);color:var(--accent);display:grid;place-items:center;font-family:var(--mono);font-size:.6rem;flex:none}
 
-@media (max-width:400px){h1{font-size:2.1rem}.cstats{grid-template-columns:1fr 1fr}.cstats div:last-child{grid-column:span 2}.lib{grid-template-columns:1fr}.ex-fields{grid-template-columns:1fr 1fr}.foodrow{grid-template-columns:1fr 1fr auto}.foodrow input:nth-of-type(3),.foodrow input:nth-of-type(4){grid-row:2}.fhead{display:none}.target{grid-auto-flow:row;grid-template-columns:1fr 1fr}}
+@media (max-width:400px){h1{font-size:2.1rem}.cstats{grid-template-columns:1fr 1fr}.cstats div:last-child{grid-column:span 2}.lib{grid-template-columns:1fr}.ex-fields{grid-template-columns:1fr 1fr}.foodrow{grid-template-columns:1fr 1fr auto}.foodrow input:nth-of-type(3),.foodrow input:nth-of-type(4){grid-row:2}.fhead{display:none}.target div{padding:9px 8px}.target b{font-size:1.05rem}.target small{letter-spacing:.08em}}
 @media (prefers-reduced-motion:reduce){.scan,.blink{animation:none}}
 .morebtn{width:100%;background:none;border:1px dashed var(--line2);border-radius:var(--r);padding:9px;color:var(--muted);font-family:var(--mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase}
 .morebtn:hover{color:var(--accent);border-color:var(--accent-dim)}
@@ -970,6 +971,8 @@ button,a,label,input,select,textarea{touch-action:manipulation;-webkit-tap-highl
 .cs-form{display:flex;flex-direction:column;gap:14px}
 .cs-form .btn{align-self:flex-start}
 .danger-row b{color:var(--bad)}
+.cs-actions{display:flex;flex-direction:column;gap:10px}
+.csheet .muted{line-height:1.55}
 .optrow>.pic-row:first-child{display:flex;flex-direction:row;align-items:center;gap:12px}
 .pic-row .avatar{width:34px;height:34px}
 

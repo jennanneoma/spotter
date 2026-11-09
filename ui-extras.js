@@ -214,6 +214,12 @@ function avatarOf(c,cls=''){return `<span class="avatar ${cls}">${c&&c.avatar?`<
 // the coach's settings for one client: name, goal, and remove
 function clientSheet(c){
   if(!c)return'';
+  const cf=ui.confirm&&ui.confirm.id===c.id?ui.confirm.kind:null,nm=esc(first(c.name));
+  const x='<button class="icon-btn" data-act="close-sheet" aria-label="Close">✕</button>';
+  // step 2: "are you sure?" right here in the sheet
+  if(cf==='archive'||cf==='delete')return `<div class="card hud sheetcard csheet" role="alertdialog" aria-label="Remove ${esc(c.name)}"><div class="section-hd"><div class="cs-who">${avatarOf(c)}<h2>Remove ${nm}?</h2></div>${x}</div>
+    ${cf==='delete'?`<p class="bad-t">This deletes ${nm} and all their history for good. It can't be undone.</p><div class="cs-actions"><button class="btn danger" data-act="delete-client" data-id="${c.id}">Delete forever</button><button class="btn ghost" data-act="cancel-confirm">Cancel</button></div>`
+    :`<p class="muted">Archiving keeps their plans, workouts and photos. They lose access to the app, and you can restore them anytime from Past clients.</p><div class="cs-actions"><button class="btn primary" data-act="archive-client" data-id="${c.id}">Archive ${nm}</button><button class="btn" data-act="ask-delete" data-id="${c.id}">Delete instead</button><button class="btn ghost" data-act="cancel-confirm">Cancel</button></div>`}</div>`;
   return `<div class="card hud sheetcard csheet" role="dialog" aria-label="${esc(c.name)} settings"><div class="section-hd"><div class="cs-who">${avatarOf(c)}<h2>${esc(first(c.name))}</h2></div><button class="icon-btn" data-act="close-sheet" aria-label="Close">✕</button></div>
     <form data-form="edit-client" class="cs-form"><label>Name<input id="ec-name" name="name" value="${esc(c.name)}" required maxlength="40"></label><label>Goal<input id="ec-goal" name="goal" value="${esc(c.goal||'')}" maxlength="80" placeholder="e.g. Build muscle"></label>${c.selfName&&c.selfName!==c.name?`<p class="hint">They go by “${esc(c.selfName)}” in their own app.</p>`:''}<button class="btn primary">Save</button></form>
     <div class="optcard">${isInvited(c)?`<button class="optrow optlink" data-act="inv-go" data-id="${c.id}"><span><b>Manage invite</b></span><span class="optval"><i aria-hidden="true">›</i></span></button>`:''}<button class="optrow optlink danger-row" data-act="ask-archive" data-id="${c.id}"><span><b>Remove client</b></span><span class="optval"><i aria-hidden="true">›</i></span></button></div></div>`;

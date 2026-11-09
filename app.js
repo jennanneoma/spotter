@@ -66,7 +66,7 @@ function renderSheet(){
 }
 /* low energy today: longer breaks so every rep can still be finished */
 function restBonus(c){const r=c.readiness[today()];if(!r||!pref(c,'extraRest'))return 0;const sc=readyScore(r);return sc<55?60:sc<75?30:0}
-function closeSheets(){ui.demoSheet=false;ui.clientSheet=null;ui.searchSheet=false;ui.sq='';ui.preview=null;ui.finishing=null;ui.swapRow=null;ui.remSheet=false;ui.nameSheet=false;ui.themeSheet=false;ui.notifSheet=false;ui.installSheet=false;ui.mealX=null;render()}
+function closeSheets(){ui.demoSheet=false;if(ui.clientSheet)ui.confirm=null;ui.clientSheet=null;ui.searchSheet=false;ui.sq='';ui.preview=null;ui.finishing=null;ui.swapRow=null;ui.remSheet=false;ui.nameSheet=false;ui.themeSheet=false;ui.notifSheet=false;ui.installSheet=false;ui.mealX=null;render()}
 function newClient(o){return{id:uid(),logs:[],weights:[],photos:[],messages:[],notes:[],mealTicks:{},meals:null,plan:null,session:null,readiness:{},progressions:[],planHistory:[],swaps:{},swapFeed:[],measures:[],checkins:[],formChecks:[],mealLog:{},dayEdits:{},reminder:{on:false,time:'07:00'},coachRead:0,notesSeen:0,status:'active',...o}}
 function shrinkImage(file,max,done,type='image/png'){const img=new Image();img.onload=()=>{const k=Math.min(1,max/Math.max(img.width,img.height)),cv=document.createElement('canvas');cv.width=Math.round(img.width*k);cv.height=Math.round(img.height*k);cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);URL.revokeObjectURL(img.src);done(cv.toDataURL(type,.82))};img.onerror=()=>toast("That file couldn't be read as an image. Try a JPG or PNG.");img.src=URL.createObjectURL(file)}
 let toastT;
@@ -122,17 +122,18 @@ const ACT={
   tab(el){ui.tab=el.dataset.v;ui.olEx=null},
   'show-past'(el){ui.view='clients';ui.showPast=true;scrollTo(0,0)},
   'toggle-past'(){ui.showPast=!ui.showPast;ui.confirm=null},
-  'ask-archive'(el){ui.clientSheet=null;ui.confirm={id:el.dataset.id,kind:'archive'};scrollTo(0,0)},
+  // "Remove client" asks first, inside the same client sheet
+  'ask-archive'(el){ui.clientSheet=el.dataset.id;ui.confirm={id:el.dataset.id,kind:'archive'};renderSheet();return'skip'},
   // the gear on a client's page: their details and the remove button, in one sheet
   'client-set'(el){ui.clientSheet=el.dataset.id;renderSheet();return'skip'},
   // "+ Note" under an exercise in the routine editor
   'note-open'(el){ui.noteOpen=el.dataset.row;ui.focus='rn-'+el.dataset.row},
   'pic-remove'(){const c=client(ui.user.id);delete c.avatar;save();toast('Profile picture removed.')},
-  'ask-delete'(el){ui.confirm={id:el.dataset.id,kind:'delete'}},
-  'cancel-confirm'(){ui.confirm=null},
-  'archive-client'(el){const c=client(el.dataset.id);c.archived=true;c.archivedAt=today();ui.confirm=null;ui.view='clients';ui.showPast=true;save();toast(`${c.name} moved to past clients. You can restore them anytime.`)},
+  'ask-delete'(el){ui.confirm={id:el.dataset.id,kind:'delete'};if(ui.clientSheet){renderSheet();return'skip'}},
+  'cancel-confirm'(){ui.confirm=null;if(ui.clientSheet){renderSheet();return'skip'}},
+  'archive-client'(el){const c=client(el.dataset.id);c.archived=true;c.archivedAt=today();ui.confirm=null;ui.clientSheet=null;ui.view='clients';ui.showPast=true;save();toast(`${c.name} moved to past clients. You can restore them anytime.`)},
   'restore-client'(el){const c=client(el.dataset.id);c.archived=false;delete c.archivedAt;save();toast(`${c.name} is active again.`)},
-  'delete-client'(el){const c=client(el.dataset.id);S.clients=S.clients.filter(x=>x.id!==c.id);ui.confirm=null;ui.view='clients';if(ui.user.id===c.id)ui.user={role:'coach',id:c.coachId};save();toast(`${c.name} and their history were deleted.`)},
+  'delete-client'(el){const c=client(el.dataset.id);S.clients=S.clients.filter(x=>x.id!==c.id);ui.confirm=null;ui.clientSheet=null;ui.view='clients';if(ui.user.id===c.id)ui.user={role:'coach',id:c.coachId};save();toast(`${c.name} and their history were deleted.`)},
   'new-plan'(){ui.chooser=ui.clientId},
   'close-chooser'(){ui.chooser=null},
   'plan-blank'(){ui.drafts[ui.clientId]={isNew:true,name:'New routine',startDate:nextMonday(),days:WK.map((_,i)=>newDay('',![0,2,4].includes(i)))};ui.openDay=null;ui.chooser=null},
