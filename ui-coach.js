@@ -126,7 +126,7 @@ const cycleHint=d=>{const t=d.days.filter(x=>!x.rest).length;return `${t} traini
 // the routine editor: name, start week, and one card per day of the week
 function planEditor(c,d){
   return `<section class="editor">
-  <div><p class="eyebrow">${!c.plan?'First routine':weekName(c,today())?`Now in ${weekName(c,today())}`:'Not started yet'}</p><h2>${d.isNew?'New routine':'Edit routine'}</h2><p class="hint">${esc(first(c.name))} sees it after you tap Save routine. Earlier weeks stay saved.</p></div>
+  <div><p class="eyebrow">${!c.plan?'First routine':weekName(c,today())?`Now in ${weekName(c,today())}`:'Not started yet'}</p><h2>${d.isNew?'New routine':'Edit routine'}</h2></div>
   <div class="card hud"><div class="row2"><label>Routine name<input id="pf-name" data-pf="name" value="${esc(d.name)}"></label>${c.plan&&(!(c.plan.activeFrom>today())||(c.planHistory||[]).length)?`<div class="whenbox"><span class="whenlabel">Starts</span><div class="whenseg" role="group" aria-label="When this routine starts">${[['this','This week'],['next','Next week']].map(([v,l])=>`<button class="${(ui.saveWhen||'this')===v?'on':''}" data-act="routine-when" data-v="${v}" aria-pressed="${(ui.saveWhen||'this')===v}">${l}</button>`).join('')}</div></div>`:`<label>Start date<input id="pf-start" type="date" data-pf="startDate" value="${d.startDate}"></label>`}</div><p class="hint" id="cycle-hint">${c.plan&&(!(c.plan.activeFrom>today())||(c.planHistory||[]).length)?`${d.days.filter(x=>!x.rest).length} training days a week. Monday to Sunday.`:cycleHint(d)}</p></div>
   
   ${d.days.map((day,i)=>dayEditor(c,day,i)).join('')}
