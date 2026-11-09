@@ -9,18 +9,34 @@ try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
 if(!S||S.v!==14||S.seededOn!==today())S=seed();
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("This browser couldn't keep your changes. They last until you close the page.")}}
 
-function renderDemo(){
-  const opts=S.coaches.map(co=>`<optgroup label="${esc(co.name)}'s side"><option value="coach:${co.id}">Coach · ${esc(co.name)}${co.onboarded===false?' (first login)':''}</option>${S.clients.filter(c=>c.coachId===co.id).map(c=>`<option value="client:${c.id}">Client · ${esc(c.name)}${c.archived?' (archived)':isInvited(c)?' (invited)':''}</option>`).join('')}</optgroup>`).join('');
-  $('#demo').innerHTML=`<span class="tag">${SPOTTER_MARK}Spotter</span><label for="who">Viewing as <select id="who">${opts}</select></label>
-  <span class="conn">Client phone <span class="seg" role="group" aria-label="Client phone connection"><button class="${S.online?'on':''}" data-act="online" data-v="1">Online</button><button class="${S.online?'':'on'}" data-act="online" data-v="0">Offline</button></span></span>
-  <button class="link" data-act="reset">Reset sample data</button>`;
-  $('#who').value=`${ui.user.role}:${ui.user.id}`;
+/* ---------- demo switcher ----------
+   Only for the prototype: lets you jump between the coach and each client to see both sides.
+   It lives behind the "viewing as" button in the top bar (see demoSheet below). */
+function demoSheet(){
+  const me=`${ui.user.role}:${ui.user.id}`;
+  const row=(v,name,sub)=>`<button class="demo-row ${v===me?'on':''}" data-act="demo-as" data-v="${v}" ${v===me?'aria-current="true"':''}><span class="avatar ${v.startsWith('coach')?'':'dim'}">${initials(name)}</span><span class="gs-txt"><b>${esc(name)}</b>${sub?`<small>${sub}</small>`:''}</span>${v===me?'<span class="demo-tick" aria-hidden="true">✓</span>':''}</button>`;
+  const groups=S.coaches.map(co=>`<section class="gs-group"><h4>${esc(co.business||co.name)}</h4>
+    ${row(`coach:${co.id}`,co.name,co.onboarded===false?'Coach · first login':'Coach')}
+    ${S.clients.filter(c=>c.coachId===co.id).map(c=>row(`client:${c.id}`,c.name,c.archived?'Past client':isInvited(c)?'Invited':'')).join('')}</section>`).join('');
+  return `<div class="card hud sheetcard demosheet" role="dialog" aria-label="Viewing as"><div class="section-hd"><h2>Viewing as</h2><button class="icon-btn" data-act="close-sheet" aria-label="Close">✕</button></div>
+    <div class="demo-list">${groups}</div>
+    <div class="demo-foot"><div class="optrow"><span><b>Client's phone</b></span><span class="whenseg" role="group" aria-label="Client phone connection"><button class="${S.online?'on':''}" data-act="online" data-v="1">Online</button><button class="${S.online?'':'on'}" data-act="online" data-v="0">Offline</button></span></div>
+    <button class="btn ghost sm" data-act="reset">Reset sample data</button></div></div>`;
+}
+// the round button in the top bar that opens the switcher: shows the initials of who you're viewing as
+const demoBtn=()=>{const who=ui.user.role==='coach'?coach(ui.user.id):client(ui.user.id);return `<button class="barbtn whobtn" data-act="demo-open" aria-label="Viewing as ${esc(who?who.name:'')}. Switch" title="Viewing as"><span>${initials(who?(ui.user.role==='coach'?who.name:myName(who)):'?')}</span></button>`};
+// switch to another person (coach or client) and start them on their home page
+function switchUser(role,id){
+  ui.user={role,id};ui.hist=[];ui.view=role==='coach'?'clients':'today';
+  Object.assign(ui,{chooser:null,preview:null,olEx:null,finishing:null,confirm:null,cMealDay:null,swapRow:null,remSheet:false,themeSheet:false,notifSheet:false,installSheet:false,demoSheet:false,searchSheet:false,mealX:null,ci:null,dayDraft:null,ciOpen:null,showMeas:false,showPhotos:false,invite:null,ob:null,obStep:1,join:null,repClient:null});
+  stopTimer();scrollTo(0,0);
 }
 // draws the whole app again from the data. Simple, and fast enough for an app this size
 function render(){
   applyTheme();
-  renderDemo();
-  $('#app').innerHTML=ui.user.role==='coach'?coachApp():clientApp();
+  const html=ui.user.role==='coach'?coachApp():clientApp();
+  // pages without the top bar (first login, invite) still get the switcher, as a small floating button
+  $('#app').innerHTML=(html.includes('class="appbar"')?'':`<div class="demo-float">${demoBtn()}</div>`)+html;
   hydrateVideos();
   const m=$('#msgs');if(m)m.scrollTop=m.scrollHeight;
   if(ui.focus){const el=document.getElementById(ui.focus);if(el)el.focus();ui.focus=null}
@@ -29,6 +45,7 @@ function render(){
 // pop-ups ("sheets") sit on top of the page. Only one shows at a time
 function renderSheet(){
   const sh=$('#sheet');
+  if(ui.demoSheet){sh.innerHTML=demoSheet();return}
   if(ui.searchSheet){if(!$('#gs-q')){sh.innerHTML=searchSheet();const q=$('#gs-q');if(q)q.focus()}return}
   if(ui.themeSheet){sh.innerHTML=themeSheet();return}
   if(ui.installSheet){sh.innerHTML=installSheet();return}
@@ -48,7 +65,7 @@ function renderSheet(){
 }
 /* low energy today: longer breaks so every rep can still be finished */
 function restBonus(c){const r=c.readiness[today()];if(!r||!pref(c,'extraRest'))return 0;const sc=readyScore(r);return sc<55?60:sc<75?30:0}
-function closeSheets(){ui.searchSheet=false;ui.sq='';ui.preview=null;ui.finishing=null;ui.swapRow=null;ui.remSheet=false;ui.nameSheet=false;ui.themeSheet=false;ui.notifSheet=false;ui.installSheet=false;ui.mealX=null;render()}
+function closeSheets(){ui.demoSheet=false;ui.searchSheet=false;ui.sq='';ui.preview=null;ui.finishing=null;ui.swapRow=null;ui.remSheet=false;ui.nameSheet=false;ui.themeSheet=false;ui.notifSheet=false;ui.installSheet=false;ui.mealX=null;render()}
 function newClient(o){return{id:uid(),logs:[],weights:[],photos:[],messages:[],notes:[],mealTicks:{},meals:null,plan:null,session:null,readiness:{},progressions:[],planHistory:[],swaps:{},swapFeed:[],measures:[],checkins:[],formChecks:[],mealLog:{},dayEdits:{},reminder:{on:false,time:'07:00'},coachRead:0,notesSeen:0,status:'active',...o}}
 function shrinkImage(file,max,done){const img=new Image();img.onload=()=>{const k=Math.min(1,max/Math.max(img.width,img.height)),cv=document.createElement('canvas');cv.width=Math.round(img.width*k);cv.height=Math.round(img.height*k);cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);URL.revokeObjectURL(img.src);done(cv.toDataURL('image/png'))};img.onerror=()=>toast("That file couldn't be read as an image. Try a JPG or PNG.");img.src=URL.createObjectURL(file)}
 let toastT;
@@ -170,6 +187,8 @@ const ACT={
     // keep the browser's own history in step so its back button doesn't jump twice
     if(pushedStates>0){pushedStates--;skipPop=true;try{history.back()}catch(e){skipPop=false}}
   },
+  'demo-open'(){ui.demoSheet=true;renderSheet();return'skip'},
+  'demo-as'(el){const[role,id]=el.dataset.v.split(':');switchUser(role,id)},
   'search-open'(){ui.searchSheet=true;ui.sq='';renderSheet();return'skip'},
   'gs-go'(el){
     ui.searchSheet=false;ui.sq='';$('#sheet').innerHTML='';
@@ -323,7 +342,7 @@ const ACT={
   'tick-meal'(el){const c=client(ui.user.id),T=today();c.mealTicks[T]=c.mealTicks[T]||{};if(c.mealTicks[T][el.dataset.meal])delete c.mealTicks[T][el.dataset.meal];else c.mealTicks[T][el.dataset.meal]={synced:S.online};save()},
   // demo bar
   online(el){const on=el.dataset.v==='1';if(on===S.online)return'skip';S.online=on;if(on){const n=syncAll();toast(n?`Back online. Synced ${n} change${n>1?'s':''}.`:'Back online.')}else toast("Client's phone is offline. Logging still works.");save()},
-  reset(){try{localStorage.removeItem(KEY)}catch(e){}S=seed();ui.hist=[];Object.assign(ui,{dayDraft:null,ci:null,mealX:null,drafts:{},mealDrafts:{},chooser:null,preview:null,confirm:null,olEx:null,finishing:null,ready:null,swapRow:null,remSheet:false,invite:null,ob:null,obStep:1,join:null});stopTimer();if(!(ui.user.role==='coach'?coach(ui.user.id):client(ui.user.id)))ui.user={role:'coach',id:'co1'};ui.view=ui.user.role==='coach'?'clients':'today';save();toast('Sample data reset.')},
+  reset(){try{localStorage.removeItem(KEY)}catch(e){}S=seed();ui.hist=[];Object.assign(ui,{dayDraft:null,ci:null,mealX:null,drafts:{},mealDrafts:{},chooser:null,preview:null,confirm:null,olEx:null,finishing:null,ready:null,swapRow:null,remSheet:false,invite:null,ob:null,obStep:1,join:null});stopTimer();if(!(ui.user.role==='coach'?coach(ui.user.id):client(ui.user.id)))ui.user={role:'coach',id:'co1'};ui.view=ui.user.role==='coach'?'clients':'today';save();ui.demoSheet=false;toast('Sample data reset.')},
 };
 /* ---------- listening for taps, typing and forms ----------
    One listener for the whole page. It finds the nearest data-act and runs that action. */
@@ -370,7 +389,7 @@ document.addEventListener('keydown',e=>{
   if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();ACT['search-open']();return}
   if(e.key==='Enter'&&e.target.id==='gs-q'){e.preventDefault();const b=$('#gs-results .gs-row');if(b)b.click();return}
   if(e.key==='Enter'&&e.target.dataset&&e.target.dataset.search){e.preventDefault();const b=$('#r-'+e.target.dataset.search+' button');if(b)b.click()}
-  if(e.key==='Escape'&&(ui.searchSheet||ui.preview||ui.finishing||ui.swapRow||ui.remSheet||ui.nameSheet||ui.themeSheet||ui.notifSheet||ui.installSheet||ui.mealX))closeSheets();
+  if(e.key==='Escape'&&(ui.demoSheet||ui.searchSheet||ui.preview||ui.finishing||ui.swapRow||ui.remSheet||ui.nameSheet||ui.themeSheet||ui.notifSheet||ui.installSheet||ui.mealX))closeSheets();
 });
 function readVideo(file,done){
   if(file.size>3*1024*1024){toast('That video is over 3 MB. Trim it to a few seconds so it loads fast and works offline.');return}
@@ -378,7 +397,6 @@ function readVideo(file,done){
 }
 document.addEventListener('change',e=>{
   const t=e.target;
-  if(t.id==='who'){const[role,id]=t.value.split(':');ui.user={role,id};ui.hist=[];ui.view=role==='coach'?'clients':'today';Object.assign(ui,{chooser:null,preview:null,olEx:null,finishing:null,confirm:null,cMealDay:null,swapRow:null,remSheet:false,themeSheet:false,notifSheet:false,installSheet:false,mealX:null,ci:null,dayDraft:null,ciOpen:null,showMeas:false,showPhotos:false,invite:null,ob:null,obStep:1,join:null,repClient:null});stopTimer();render();scrollTo(0,0);return}
   if(t.dataset.pref){const o=notifOwner();o.prefs=o.prefs||{};o.prefs[t.dataset.pref]=t.type==='checkbox'?t.checked:+t.value;save();return}
   if(t.dataset.setlogo!==undefined&&t.files[0]){shrinkImage(t.files[0],200,src=>{coach(ui.user.id).logo=src;save();render();toast('Logo saved.')});return}
   if(t.dataset.pf==='startDate'){render();return}

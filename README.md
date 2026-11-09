@@ -6,9 +6,9 @@ Coaches build weekly workout routines with progressive overload, plan meals for 
 
 ## To Try it you need to....
 
-Open `index.html` in a browser. The bar at the top switches between the coach view and each client's view, so you can see both sides.
+Open `index.html` in a browser. The round button next to search lets you switch between the coach and each client, so you can see both sides.
 
-This is a front-end prototype. It runs on sample data saved in your browser, and there are no accounts or server yet. **Reset sample data** in the top bar starts it fresh.
+This is a front-end prototype. It runs on sample data saved in your browser, and there are no accounts or server yet. **Reset sample data** in that same menu starts it fresh.
 
 ## What's in it
 

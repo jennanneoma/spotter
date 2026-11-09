@@ -273,7 +273,7 @@ function notifications(){
 const notifOwner=()=>ui.user.role==='client'?client(ui.user.id):coach(ui.user.id);
 function appBar(co){
   const read=notifOwner().notifRead||0,n=notifications().filter(x=>x.ts>read).length;
-  return `<div class="appbar">${brandMark(co,30)}<span class="appname">${esc(co.business||co.name)}</span><button class="barbtn" data-act="search-open" aria-label="Search" title="Search (Ctrl K)">${SEARCH_ICON}</button><button class="barbtn" data-act="settings-open" aria-label="Settings" title="Settings">${GEAR}</button><button class="barbtn" data-act="notif-open" aria-label="Notifications${n?`, ${n} new`:''}" title="Notifications">${NBELL}${n?`<span class="barcount">${n>9?'9+':n}</span>`:''}</button></div>`;
+  return `<div class="appbar">${brandMark(co,30)}<span class="appname">${esc(co.business||co.name)}</span>${demoBtn()}<button class="barbtn" data-act="search-open" aria-label="Search" title="Search (Ctrl K)">${SEARCH_ICON}</button><button class="barbtn" data-act="settings-open" aria-label="Settings" title="Settings">${GEAR}</button><button class="barbtn" data-act="notif-open" aria-label="Notifications${n?`, ${n} new`:''}" title="Notifications">${NBELL}${n?`<span class="barcount">${n>9?'9+':n}</span>`:''}</button></div>`;
 }
 function notifSheet(){
   const list=notifications(),prev=ui.notifPrev||0;
