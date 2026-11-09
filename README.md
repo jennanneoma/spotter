@@ -1,6 +1,6 @@
 # Spotter
 
-Soooo... Spotter is a coaching app for personal trainers and their clients...
+Spotter is a coaching app for personal trainers and their clients...
 
 Coaches build weekly workout routines with progressive overload, plan meals for each day of the week, and follow every client's progress through reports and a training calendar. Clients see today's workout with a moving demo of each exercise, log their sets, tick off meals and message their coach.
 
