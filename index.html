@@ -26,7 +26,8 @@
   --accent-rgb:184,242,76; --bad-rgb:255,90,78; --warn-rgb:255,196,71;
   --r:3px; color-scheme:dark;
 }
-:root[data-skin="pink"]{--bg:#0A0508;--surface:#140B10;--sunk:#1C1016;--raise:#25151D;--ink:#FBEAF2;--muted:#A58896;--line:#2A1721;--line2:#44263A;--accent:#FF6FB5;--accent-dim:#A83A74;--on-accent:#22040F;--accent-rgb:255,111,181;--bad:#FF8A3D;--bad-rgb:255,138,61;--warn:#FFD84D;--warn-rgb:255,216,77;color-scheme:dark}
+/* pink: hot pink on true black. Cards are near-black greys so the pink is the only colour */
+:root[data-skin="pink"]{--bg:#000000;--surface:#0A0A0A;--sunk:#111111;--raise:#171717;--ink:#FBEAF2;--muted:#9C8F95;--line:#1E1E1E;--line2:#303030;--accent:#FF6FB5;--accent-dim:#A83A74;--on-accent:#22040F;--accent-rgb:255,111,181;--bad:#FF8A3D;--bad-rgb:255,138,61;--warn:#FFD84D;--warn-rgb:255,216,77;color-scheme:dark}
 :root[data-skin="ocean"]{--bg:#040A10;--surface:#0A131C;--sunk:#101B27;--raise:#162433;--ink:#E4F1FB;--muted:#7F95A8;--line:#182634;--line2:#2A3F54;--accent:#5CC8FF;--accent-dim:#2A7BA8;--on-accent:#04121C;--accent-rgb:92,200,255;--bad:#FF5A4E;--bad-rgb:255,90,78;--warn:#FFC447;--warn-rgb:255,196,71;color-scheme:dark}
 :root[data-skin="violet"]{--bg:#08060F;--surface:#110D1C;--sunk:#181326;--raise:#201932;--ink:#EEE9FB;--muted:#9389AB;--line:#221B36;--line2:#393053;--accent:#B79CFF;--accent-dim:#6A4FB3;--on-accent:#0F0822;--accent-rgb:183,156,255;--bad:#FF5A6E;--bad-rgb:255,90,110;--warn:#FFC447;--warn-rgb:255,196,71;color-scheme:dark}
 :root[data-skin="ember"]{--bg:#0C0705;--surface:#160E0A;--sunk:#1F140E;--raise:#2A1B13;--ink:#F9EDE4;--muted:#A8917F;--line:#2C1E15;--line2:#4A3324;--accent:#FF9A3D;--accent-dim:#A85E1E;--on-accent:#1C0C02;--accent-rgb:255,154,61;--bad:#FF4F7B;--bad-rgb:255,79,123;--warn:#FFE066;--warn-rgb:255,224,102;color-scheme:dark}
@@ -879,7 +880,12 @@ i.next{border:1px solid var(--line2)}
 .routine-hd{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
 .routine-hd>div:first-child{display:flex;flex-direction:column;gap:6px;min-width:0}
 .routine-hd h2{line-height:1.1}
-.routine-btns{display:flex;gap:4px;flex:none}
+.routine-btns{display:flex;gap:8px;flex:none}
+.iconbtn{width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--line2);border-radius:2px;background:var(--raise);color:var(--ink)}
+.iconbtn:hover{border-color:var(--accent-dim);color:var(--accent)}
+.iconbtn svg{width:18px;height:18px}
+.iconbtn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);box-shadow:0 6px 18px -10px rgba(var(--accent-rgb),.6)}
+.iconbtn.primary:hover{color:var(--on-accent);filter:brightness(1.05)}
 .datestrip{padding:14px 12px 12px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);gap:12px}
 .datestrip .ds-hd{padding:0 4px}
 .datestrip .weekchips{gap:2px}
@@ -905,6 +911,8 @@ i.next{border:1px solid var(--line2)}
 .demo-foot .optrow{padding:0;border:0;background:none}
 .demo-foot .whenseg{width:170px}
 .demo-foot .btn{align-self:flex-start;padding-left:0}
+/* pink keeps the faint grid but drops the coloured glow at the top, so the black stays pure */
+:root[data-skin="pink"] body{background-image:linear-gradient(rgba(var(--accent-rgb),.018) 1px,transparent 1px),linear-gradient(90deg,rgba(var(--accent-rgb),.018) 1px,transparent 1px);background-size:40px 40px,40px 40px}
 /* phones: tighter type and spacing so more fits on one screen, and lighter effects for smooth scrolling */
 button,a,label,input,select,textarea{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 @media (max-width:520px){

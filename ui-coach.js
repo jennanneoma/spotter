@@ -82,6 +82,9 @@ function coachClient(co){
   ${body}`;
 }
 // the Workouts tab: the current routine, the "change one day" dates, and recent workouts
+// small icons for the routine buttons: a plus for "new", a pen for "edit"
+const PLUS_ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+const PEN_ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9a2.1 2.1 0 0 0-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>';
 function coachWorkouts(c){
   const d=ui.drafts[c.id];if(d)return planEditor(c,d);
   if(ui.dayDraft&&ui.dayDraft.cid===c.id)return dayEditView(c);
@@ -93,7 +96,7 @@ function coachWorkouts(c){
     const T=today(),wkNow=progWeek(c,T),from=c.plan.activeFrom||mondayOf(c.plan.startDate),future=from>T;
     if(inf.plan!==c.plan)inf.idx=-1;
     if(future){const cur=planAt(c,T),wn=weekName(c,from);out+=`<div class="note-banner"><p>${cur?`This week ${esc(first(c.name))} is still on <b>${esc(cur.name)}</b>. `:''}The routine below starts on <b>${fmtDate(from)}</b>${wn?` (${wn})`:''}.</p></div>`}
-    out+=`<div class="routine-hd"><div><p class="eyebrow">${future?`Starts ${fmtDate(from)}`:wkNow>=1?`Routine · Week ${wkNow}`:'Routine'}</p><h2>${esc(c.plan.name)}</h2></div><div class="routine-btns"><button class="btn ghost sm" data-act="new-plan">New</button><button class="btn primary sm" data-act="edit-plan">Edit</button></div></div>
+    out+=`<div class="routine-hd"><div><p class="eyebrow">${future?`Starts ${fmtDate(from)}`:wkNow>=1?`Routine · Week ${wkNow}`:'Routine'}</p><h2>${esc(c.plan.name)}</h2></div><div class="routine-btns"><button class="iconbtn" data-act="new-plan" aria-label="New routine" title="New routine">${PLUS_ICON}</button><button class="iconbtn primary" data-act="edit-plan" aria-label="Edit routine" title="Edit routine">${PEN_ICON}</button></div></div>
     ${dateStrip(c)}
     <ol class="plan-days">${c.plan.days.map((day,i)=>`<li class="${inf.idx===i?'today':''}"><span class="dn mono">${WK[i].toUpperCase()}</span><span class="dd"><b>${esc(dayTitle(day))}${inf.idx===i?' <span class="pill acc">Today</span>':''}</b>${day.rest?'':day.exercises.map(r=>`<span class="pl-ex">${thumb(exById(r.exId))}<span class="pl-txt"><b>${esc(exById(r.exId).name)}</b><small>${repsText(r.sets,r.reps)}${weightText(r,today(),c.plan)?` · ${weightText(r,today(),c.plan)}`:""}${progTag(r)?` <i class="auto">${progTag(r)}</i>`:""}</small></span></span>`).join('')||'<small>No exercises yet</small>'}</span></li>`).join('')}</ol>`;
   }

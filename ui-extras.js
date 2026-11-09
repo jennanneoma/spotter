@@ -217,7 +217,7 @@ function nameSheet(c){
 }
 
 /* Themes: each person's own colours. Kept apart from the app data so Reset sample data leaves them alone. */
-const THEMES=[['lime','Lime','Black and lime, the Spotter look','#050806','#B8F24C'],['pink','Pink','Black and hot pink','#0A0508','#FF6FB5'],['ocean','Ocean','Deep navy and sky blue','#040A10','#5CC8FF'],['violet','Violet','Midnight purple and lavender','#08060F','#B79CFF'],['ember','Ember','Warm charcoal and orange','#0C0705','#FF9A3D'],['blush','Blush','Light mode in soft pink','#FDF2F7','#C8186F'],['daylight','Daylight','Light mode in white and green','#F5F8F2','#3A7D0A']];
+const THEMES=[['lime','Lime','Black and lime, the Spotter look','#050806','#B8F24C'],['pink','Pink','Pitch black and hot pink','#000000','#FF6FB5'],['ocean','Ocean','Deep navy and sky blue','#040A10','#5CC8FF'],['violet','Violet','Midnight purple and lavender','#08060F','#B79CFF'],['ember','Ember','Warm charcoal and orange','#0C0705','#FF9A3D'],['blush','Blush','Light mode in soft pink','#FDF2F7','#C8186F'],['daylight','Daylight','Light mode in white and green','#F5F8F2','#3A7D0A']];
 const PALETTE='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-1 2-1.9 0-1.4-1-1.8-1-3 0-1 .8-1.6 1.8-1.6H17a4 4 0 0 0 4-4C21 6.2 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7.5" r="1"/><circle cx="15" cy="7.5" r="1"/></svg>';
 let themeMem={};try{themeMem=JSON.parse(localStorage.getItem('spotter-themes'))||{}}catch(e){}
 const themeOf=()=>themeMem[`${ui.user.role}:${ui.user.id}`]||'lime';
