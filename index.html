@@ -24,15 +24,16 @@
   --bad:#FF5A4E; --bad-soft:rgba(var(--bad-rgb),.12); --warn:#FFC447; --warn-soft:rgba(var(--warn-rgb),.12);
   --display:'Barlow Condensed','Arial Narrow',sans-serif; --body:'Figtree',system-ui,-apple-system,sans-serif; --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
   --accent-rgb:184,242,76; --bad-rgb:255,90,78; --warn-rgb:255,196,71;
+  --accent2:var(--accent); --accent2-rgb:var(--accent-rgb);
   --r:3px; color-scheme:dark;
 }
 /* pink: hot pink on true black. Cards are near-black greys so the pink is the only colour */
-:root[data-skin="pink"]{--bg:#000000;--surface:#0A0A0A;--sunk:#111111;--raise:#171717;--ink:#FBEAF2;--muted:#9C8F95;--line:#1E1E1E;--line2:#303030;--accent:#FF6FB5;--accent-dim:#A83A74;--on-accent:#22040F;--accent-rgb:255,111,181;--bad:#FF8A3D;--bad-rgb:255,138,61;--warn:#FFD84D;--warn-rgb:255,216,77;color-scheme:dark}
-:root[data-skin="ocean"]{--bg:#040A10;--surface:#0A131C;--sunk:#101B27;--raise:#162433;--ink:#E4F1FB;--muted:#7F95A8;--line:#182634;--line2:#2A3F54;--accent:#5CC8FF;--accent-dim:#2A7BA8;--on-accent:#04121C;--accent-rgb:92,200,255;--bad:#FF5A4E;--bad-rgb:255,90,78;--warn:#FFC447;--warn-rgb:255,196,71;color-scheme:dark}
-:root[data-skin="violet"]{--bg:#08060F;--surface:#110D1C;--sunk:#181326;--raise:#201932;--ink:#EEE9FB;--muted:#9389AB;--line:#221B36;--line2:#393053;--accent:#B79CFF;--accent-dim:#6A4FB3;--on-accent:#0F0822;--accent-rgb:183,156,255;--bad:#FF5A6E;--bad-rgb:255,90,110;--warn:#FFC447;--warn-rgb:255,196,71;color-scheme:dark}
-:root[data-skin="ember"]{--bg:#0C0705;--surface:#160E0A;--sunk:#1F140E;--raise:#2A1B13;--ink:#F9EDE4;--muted:#A8917F;--line:#2C1E15;--line2:#4A3324;--accent:#FF9A3D;--accent-dim:#A85E1E;--on-accent:#1C0C02;--accent-rgb:255,154,61;--bad:#FF4F7B;--bad-rgb:255,79,123;--warn:#FFE066;--warn-rgb:255,224,102;color-scheme:dark}
-:root[data-skin="blush"]{--bg:#FDF2F7;--surface:#FFFFFF;--sunk:#FBE7F0;--raise:#F7DCE9;--ink:#33101F;--muted:#7D5F6C;--line:#F3D6E3;--line2:#E7BCD0;--accent:#C8186F;--accent-dim:#E58AB6;--on-accent:#FFFFFF;--accent-rgb:200,24,111;--bad:#C2410C;--bad-rgb:194,65,12;--warn:#8A5A00;--warn-rgb:138,90,0;color-scheme:light}
-:root[data-skin="daylight"]{--bg:#F5F8F2;--surface:#FFFFFF;--sunk:#EDF2E8;--raise:#E3EBDC;--ink:#15210F;--muted:#5F6E57;--line:#DDE6D5;--line2:#C3D2B8;--accent:#3A7D0A;--accent-dim:#8FBE6B;--on-accent:#FFFFFF;--accent-rgb:58,125,10;--bad:#C62828;--bad-rgb:198,40,40;--warn:#8A5A00;--warn-rgb:138,90,0;color-scheme:light}
+:root[data-skin="pink"]{--bg:#000000;--surface:#0B0609;--sunk:#120A0F;--raise:#1A0E15;--ink:#FFEAF4;--muted:#A68C99;--line:#22121B;--line2:#3A1E2D;--accent:#FF5FAE;--accent-dim:#A3326E;--on-accent:#2A0416;--accent-rgb:255,95,174;--accent2:#C77DFF;--accent2-rgb:199,125,255;--bad:#FF8A3D;--bad-rgb:255,138,61;--warn:#FFD84D;--warn-rgb:255,216,77;color-scheme:dark}
+:root[data-skin="ocean"]{--bg:#020B10;--surface:#07141B;--sunk:#0B1C25;--raise:#10242F;--ink:#E3F6F8;--muted:#7E9EA6;--line:#10232C;--line2:#1E3A46;--accent:#3FE0D0;--accent-dim:#1F8A82;--on-accent:#01161A;--accent-rgb:63,224,208;--accent2:#4D9BFF;--accent2-rgb:77,155,255;--bad:#FF6B6B;--bad-rgb:255,107,107;--warn:#FFD166;--warn-rgb:255,209,102;color-scheme:dark}
+:root[data-skin="violet"]{--bg:#07040F;--surface:#0F0A1C;--sunk:#150F27;--raise:#1C1532;--ink:#F1ECFF;--muted:#9A90B8;--line:#1D1530;--line2:#34284F;--accent:#B98CFF;--accent-dim:#6B48B8;--on-accent:#140726;--accent-rgb:185,140,255;--accent2:#FF6EC7;--accent2-rgb:255,110,199;--bad:#FF6B81;--bad-rgb:255,107,129;--warn:#FFD166;--warn-rgb:255,209,102;color-scheme:dark}
+:root[data-skin="ember"]{--bg:#0D0605;--surface:#170C0A;--sunk:#20110E;--raise:#2A1612;--ink:#FFEFE8;--muted:#B0928A;--line:#2A1713;--line2:#482822;--accent:#FF8A4C;--accent-dim:#A8502A;--on-accent:#200A03;--accent-rgb:255,138,76;--accent2:#F9C74F;--accent2-rgb:249,199,79;--bad:#FF4F7B;--bad-rgb:255,79,123;--warn:#FFE38A;--warn-rgb:255,227,138;color-scheme:dark}
+:root[data-skin="blush"]{--bg:#FFF5F8;--surface:#FFFFFF;--sunk:#FDEBF1;--raise:#FADDE8;--ink:#3A1225;--muted:#8A6676;--line:#F5DCE6;--line2:#EBC2D3;--accent:#D6336C;--accent-dim:#F0A5C0;--on-accent:#FFFFFF;--accent-rgb:214,51,108;--accent2:#F08A5D;--accent2-rgb:240,138,93;--bad:#C2410C;--bad-rgb:194,65,12;--warn:#8A5A00;--warn-rgb:138,90,0;color-scheme:light}
+:root[data-skin="daylight"]{--bg:#F3FAF6;--surface:#FFFFFF;--sunk:#E8F4ED;--raise:#DCEEE3;--ink:#0F2A1E;--muted:#5B7568;--line:#D8EBE0;--line2:#BCDCC9;--accent:#0B7F53;--accent-dim:#8FD3B4;--on-accent:#FFFFFF;--accent-rgb:11,127,83;--accent2:#1A9BA8;--accent2-rgb:26,155,168;--bad:#C62828;--bad-rgb:198,40,40;--warn:#8A5A00;--warn-rgb:138,90,0;color-scheme:light}
 *{box-sizing:border-box}
 html,body{min-height:100%}
 body{background-color:var(--bg);background-image:radial-gradient(ellipse 80% 40% at 50% -5%,rgba(var(--accent-rgb),.06),transparent 70%),linear-gradient(rgba(var(--accent-rgb),.018) 1px,transparent 1px),linear-gradient(90deg,rgba(var(--accent-rgb),.018) 1px,transparent 1px);background-size:100% 100%,40px 40px,40px 40px;background-attachment:fixed;color:var(--ink);font:15.5px/1.6 var(--body)}
@@ -459,7 +460,7 @@ a.btn{text-decoration:none}
 .themeopt.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
 .themeswatch{width:48px;height:34px;border-radius:6px;display:flex;align-items:flex-end;padding:5px;gap:3px;flex:none;border:1px solid var(--line2)}
 .themeswatch i{height:100%;flex:1;border-radius:2px}
-.themeswatch i+i{height:55%;opacity:.55}
+.themeswatch i+i{height:55%;opacity:.7}
 .themeopt>span:nth-child(2){flex:1;display:flex;flex-direction:column;min-width:0}
 .themeopt small{color:var(--muted);font-size:.8rem}
 .themecheck{color:var(--accent);font-weight:700}
@@ -888,7 +889,7 @@ i.next{border:1px solid var(--line2)}
 .demo-foot .whenseg{width:170px}
 .demo-foot .btn{align-self:flex-start;padding-left:0}
 /* pink keeps the faint grid but drops the coloured glow at the top, so the black stays pure */
-:root[data-skin="pink"] body{background-image:linear-gradient(rgba(var(--accent-rgb),.018) 1px,transparent 1px),linear-gradient(90deg,rgba(var(--accent-rgb),.018) 1px,transparent 1px);background-size:40px 40px,40px 40px}
+:root[data-skin="pink"] body{background-color:#000;background-image:radial-gradient(ellipse 60% 28% at 15% -6%,rgba(var(--accent-rgb),.16),transparent 70%),radial-gradient(ellipse 50% 24% at 90% -4%,rgba(var(--accent2-rgb),.13),transparent 70%),linear-gradient(rgba(var(--accent-rgb),.016) 1px,transparent 1px),linear-gradient(90deg,rgba(var(--accent-rgb),.016) 1px,transparent 1px);background-size:100% 100%,100% 100%,40px 40px,40px 40px}
 /* phones: tighter type and spacing so more fits on one screen, and lighter effects for smooth scrolling */
 button,a,label,input,select,textarea{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 @media (max-width:520px){
@@ -951,6 +952,7 @@ button,a,label,input,select,textarea{touch-action:manipulation;-webkit-tap-highl
 .cropsheet{gap:18px}
 .cropbox{position:relative;width:min(280px,100%);aspect-ratio:1;margin:0 auto;overflow:hidden;border-radius:var(--r);background:var(--sunk);border:1px solid var(--accent-dim);touch-action:none;cursor:grab;user-select:none}
 .cropbox:active{cursor:grabbing}
+.croplogo .cropbox{border-radius:14px;background:repeating-conic-gradient(var(--sunk) 0 25%,var(--raise) 0 50%) 0 0/20px 20px}
 .cropbox img{position:absolute;left:50%;top:50%;max-width:none;pointer-events:none;user-select:none;-webkit-user-drag:none}
 .cropbox::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,transparent calc(33.33% - .5px),rgba(255,255,255,.14) 0,rgba(255,255,255,.14) calc(33.33% + .5px),transparent 0,transparent calc(66.66% - .5px),rgba(255,255,255,.14) 0,rgba(255,255,255,.14) calc(66.66% + .5px),transparent 0),linear-gradient(transparent calc(33.33% - .5px),rgba(255,255,255,.14) 0,rgba(255,255,255,.14) calc(33.33% + .5px),transparent 0,transparent calc(66.66% - .5px),rgba(255,255,255,.14) 0,rgba(255,255,255,.14) calc(66.66% + .5px),transparent 0)}
 .cropzoom{flex-direction:row!important;align-items:center;gap:12px;width:min(280px,100%);margin:0 auto;font-size:1rem;color:var(--muted)}
@@ -985,6 +987,28 @@ button,a,label,input,select,textarea{touch-action:manipulation;-webkit-tap-highl
   .chead{column-gap:12px}
   .savebar .btn{white-space:nowrap;padding:10px;font-size:.78rem;letter-spacing:.06em}
 }
+/* ---------- the two-colour themes (pink, lagoon, nebula, sunset, rose, mint) ----------
+   Each one has a second colour (--accent2). It tints the glow behind the page and blends
+   into the main colour on buttons, so the theme feels rich instead of flat.
+   Lime and pink don't set --accent2, so they stay exactly as they were. */
+:root:is([data-skin="ocean"],[data-skin="violet"],[data-skin="ember"]) body{background-image:radial-gradient(ellipse 70% 45% at 0% -10%,rgba(var(--accent-rgb),.13),transparent 70%),radial-gradient(ellipse 60% 40% at 100% 0%,rgba(var(--accent2-rgb),.11),transparent 70%),radial-gradient(ellipse 80% 50% at 50% 110%,rgba(var(--accent2-rgb),.06),transparent 70%),linear-gradient(rgba(var(--accent-rgb),.014) 1px,transparent 1px),linear-gradient(90deg,rgba(var(--accent-rgb),.014) 1px,transparent 1px);background-size:100% 100%,100% 100%,100% 100%,40px 40px,40px 40px}
+:root:is([data-skin="blush"],[data-skin="daylight"]) body{background-image:radial-gradient(ellipse 70% 45% at 0% -10%,rgba(var(--accent-rgb),.10),transparent 70%),radial-gradient(ellipse 60% 40% at 100% 0%,rgba(var(--accent2-rgb),.12),transparent 70%),radial-gradient(ellipse 80% 50% at 50% 110%,rgba(var(--accent2-rgb),.07),transparent 70%);background-size:100% 100%}
+:root:is([data-skin="pink"],[data-skin="ocean"],[data-skin="violet"],[data-skin="ember"],[data-skin="blush"],[data-skin="daylight"]) :is(.btn.primary,.iconbtn.primary,.brandlogo:not(img)){background:linear-gradient(135deg,var(--accent),var(--accent2));border-color:transparent;box-shadow:0 8px 22px -12px rgba(var(--accent2-rgb),.8)}
+:root:is([data-skin="pink"],[data-skin="ocean"],[data-skin="violet"],[data-skin="ember"],[data-skin="blush"],[data-skin="daylight"]) .tabbar button.on::before{background:linear-gradient(90deg,var(--accent),var(--accent2));box-shadow:0 0 12px rgba(var(--accent2-rgb),.7)}
+:root:is([data-skin="pink"],[data-skin="ocean"],[data-skin="violet"],[data-skin="ember"],[data-skin="blush"],[data-skin="daylight"]) .tabs button.on{border-image:linear-gradient(90deg,var(--accent),var(--accent2)) 1}
+:root:is([data-skin="pink"],[data-skin="ocean"],[data-skin="violet"],[data-skin="ember"],[data-skin="blush"],[data-skin="daylight"]) :is(.card,.optcard){border-color:color-mix(in srgb,var(--line) 70%,rgba(var(--accent2-rgb),.35))}
+:root:is([data-skin="pink"],[data-skin="ocean"],[data-skin="violet"],[data-skin="ember"],[data-skin="blush"],[data-skin="daylight"]) .eyebrow{background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+:root:is([data-skin="pink"],[data-skin="ocean"],[data-skin="violet"],[data-skin="ember"],[data-skin="blush"],[data-skin="daylight"]) .lognote .eyebrow{background:none;color:var(--warn)}
+/* pink: big headings glow softly, the chosen day and tab icons shine */
+:root[data-skin="pink"] h1{text-shadow:0 0 24px rgba(var(--accent-rgb),.28)}
+:root[data-skin="pink"] .tabbar button.on svg{filter:drop-shadow(0 0 6px rgba(var(--accent-rgb),.8)) drop-shadow(0 0 12px rgba(var(--accent2-rgb),.45))}
+:root[data-skin="pink"] .card{background:linear-gradient(180deg,rgba(var(--accent-rgb),.035),transparent 40%),var(--surface)}
+/* light themes: soft shadows instead of glowing lines, so cards float a little */
+:root:is([data-skin="blush"],[data-skin="daylight"]) :is(.card,.optcard,.themeopt){box-shadow:0 1px 2px rgba(0,0,0,.04),0 10px 28px -16px rgba(var(--accent-rgb),.35)}
+/* profile pictures are round everywhere, like most apps */
+.avatar{border-radius:50%!important}
+/* the crop pop-up for a profile picture shows the round shape it will be saved as */
+.cropsheet:not(.croplogo) .cropbox::after{background:none;border-radius:50%;box-shadow:0 0 0 999px rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.4)}
 </style>
 
 <div id="app"></div>

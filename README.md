@@ -17,7 +17,7 @@ This is a front-end prototype. It runs on sample data saved in your browser, and
 - **Search:** one search box for clients, exercises, messages and every setting
 - **Settings:** check-in day, reminders, notifications, themes and a data download
 - **Install:** can be added to a phone's home screen
-- **Themes:** lime (default), pink, ocean, violet, ember, blush and a light theme(might remove this feature)
+- **Themes:** lime (default), pink, lagoon, nebula, sunset, and two light themes, rose and mint(might remove this feature)
 
 ## Files
 

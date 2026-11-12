@@ -45,7 +45,7 @@ function render(){
 // pop-ups ("sheets") sit on top of the page. Only one shows at a time
 function renderSheet(){
   const sh=$('#sheet');
-  if(ui.crop&&ui.user.role==='client'){if(!$('#cropbox')){sh.innerHTML=cropSheet()}cropLayout();return}
+  if(ui.crop){if(!$('#cropbox')){sh.innerHTML=cropSheet()}cropLayout();return}
   if(ui.demoSheet){sh.innerHTML=demoSheet();return}
   if(ui.clientSheet&&ui.user.role==='coach'){sh.innerHTML=clientSheet(client(ui.clientSheet));return}
   if(ui.searchSheet){if(!$('#gs-q')){sh.innerHTML=searchSheet();const q=$('#gs-q');if(q)q.focus()}return}
@@ -127,8 +127,10 @@ const ACT={
   'note-open'(el){ui.noteOpen=el.dataset.row;ui.focus='rn-'+el.dataset.row},
   // save the square you can see in the crop pop-up as the profile picture
   'crop-save'(){const c=ui.crop,box=$('#cropbox');if(!c)return'skip';cropLayout();const B=c.B||(box?box.getBoundingClientRect().width:280),s=B/Math.min(c.w,c.h)*c.zoom;
-    const im=new Image();im.onload=()=>{const cv=document.createElement('canvas');cv.width=cv.height=320;cv.getContext('2d').drawImage(im,c.w/2+(-B/2-c.x)/s,c.h/2+(-B/2-c.y)/s,B/s,B/s,0,0,320,320);
-      client(ui.user.id).avatar=cv.toDataURL('image/jpeg',.85);ui.crop=null;save();render();toast('Profile picture saved.')};im.src=c.src;return'skip'},
+    const im=new Image();im.onload=()=>{const logo=c.for!=='avatar',cv=document.createElement('canvas');cv.width=cv.height=320;cv.getContext('2d').drawImage(im,c.w/2+(-B/2-c.x)/s,c.h/2+(-B/2-c.y)/s,B/s,B/s,0,0,320,320);
+      const out=logo?cv.toDataURL('image/png'):cv.toDataURL('image/jpeg',.85);ui.crop=null; // logos stay PNG so see-through parts stay see-through
+      if(c.for==='avatar'){client(ui.user.id).avatar=out;toast('Profile picture saved.')}else if(c.for==='logo'){coach(ui.user.id).logo=out;toast('Logo saved.')}else ui.ob.logo=out;
+      save();render()};im.src=c.src;return'skip'},
   'pic-remove'(){const c=client(ui.user.id);delete c.avatar;save();toast('Profile picture removed.')},
   'ask-delete'(el){ui.confirm={id:el.dataset.id,kind:'delete'};if(ui.clientSheet){renderSheet();return'skip'}},
   'cancel-confirm'(){ui.confirm=null;if(ui.clientSheet){renderSheet();return'skip'}},
@@ -380,17 +382,16 @@ function readVideo(file,done){
 document.addEventListener('change',e=>{
   const t=e.target;
   if(t.dataset.pref){const o=notifOwner();o.prefs=o.prefs||{};o.prefs[t.dataset.pref]=t.type==='checkbox'?t.checked:+t.value;save();return}
-  if(t.dataset.setlogo!==undefined&&t.files[0]){shrinkImage(t.files[0],200,src=>{coach(ui.user.id).logo=src;save();render();toast('Logo saved.')});return}
   if(t.dataset.pf==='startDate'){render();return}
   if(t.dataset.rem==='on'){const c=client(ui.user.id);c.reminder={...(c.reminder||{time:'07:00'}),on:t.checked};save();renderSheet();toast(t.checked?'Reminders on.':'Reminders off.');return}
   if(t.dataset.rem==='time'){renderSheet();return}
-  if(t.dataset.oblogo!==undefined&&t.files[0]){shrinkImage(t.files[0],200,src=>{ui.ob.logo=src;render()});return}
   if(t.dataset.rf==="weight"){const sel=t.closest(".exrow").querySelector("[data-pgtype]");if(sel&&sel.disabled===(t.value.trim()!==""))render();return}
   // the "Weight" dropdown under each exercise: same as tapping one of the old buttons
   if(t.dataset.pgtype!==undefined){ACT['prog-type']({dataset:{day:t.dataset.day,row:t.dataset.row,v:t.value}});render();return}
   // a client picking their own profile picture
-  // a client picked a photo: open the crop pop-up so they can move and zoom it first
-  if(t.dataset.mypic!==undefined&&t.files[0]){shrinkImage(t.files[0],1600,src=>{const im=new Image();im.onload=()=>{ui.crop={src,w:im.width,h:im.height,zoom:1,x:0,y:0};renderSheet()};im.src=src},'image/jpeg');t.value='';return}
+  // a photo or logo was picked: open the crop pop-up so it can be moved and zoomed first
+  const pickFor=t.dataset.mypic!==undefined?'avatar':t.dataset.setlogo!==undefined?'logo':t.dataset.oblogo!==undefined?'oblogo':null;
+  if(pickFor&&t.files[0]){openCrop(t.files[0],pickFor);t.value='';return}
   if(t.dataset.vid&&t.files[0]){readVideo(t.files[0],src=>{exById(t.dataset.vid).video=src;save();renderSheet();toast('Video saved. Clients see it instead of the animation.')});return}
   if(t.dataset.fcfile&&t.files[0]){const c=client(ui.user.id),file=t.files[0],cn=first(coach(c.coachId).name);
     if(file.size>150*1024*1024){toast('That video is very long. Film one set, about 10 to 30 seconds.');return}
@@ -448,15 +449,18 @@ if('serviceWorker' in navigator&&location.protocol==='https:'&&window.top===wind
    centre of the square, in screen pixels. Drag with one finger (or the mouse) to move it,
    pinch with two fingers, use the slider, or scroll the mouse wheel to zoom. */
 let cropMovedAt=0;const cropPts=new Map();
+// logos may zoom out until the whole logo fits; photos always fill the square
+const cropMin=c=>c.for==='avatar'?1:Math.min(c.w,c.h)/Math.max(c.w,c.h);
+function openCrop(file,target){shrinkImage(file,1600,src=>{const im=new Image();im.onload=()=>{ui.crop={for:target,src,w:im.width,h:im.height,zoom:1,x:0,y:0};if(target!=='avatar')ui.crop.zoom=cropMin(ui.crop);renderSheet()};im.src=src},target==='avatar'?'image/jpeg':'image/png')}
 function cropLayout(){
   const c=ui.crop,box=$('#cropbox'),img=$('#crop-img');if(!c||!box||!img)return;
   const B=box.getBoundingClientRect().width||280,s=B/Math.min(c.w,c.h)*c.zoom,W=c.w*s,H=c.h*s;
   // never let the photo slide so far that an empty edge shows inside the square
-  const mx=(W-B)/2,my=(H-B)/2;c.x=Math.max(-mx,Math.min(mx,c.x));c.y=Math.max(-my,Math.min(my,c.y));c.B=B;
+  const mx=Math.abs(W-B)/2,my=Math.abs(H-B)/2;c.x=Math.max(-mx,Math.min(mx,c.x));c.y=Math.max(-my,Math.min(my,c.y));c.B=B;
   img.style.width=W+'px';img.style.height=H+'px';img.style.transform=`translate(${c.x-W/2}px,${c.y-H/2}px)`;
   const z=$('#crop-zoom');if(z&&+z.value!==c.zoom)z.value=c.zoom;
 }
-function cropZoomTo(z){const c=ui.crop;z=Math.max(1,Math.min(4,z));c.x*=z/c.zoom;c.y*=z/c.zoom;c.zoom=z;cropLayout()}
+function cropZoomTo(z){const c=ui.crop;z=Math.max(cropMin(c),Math.min(4,z));c.x*=z/c.zoom;c.y*=z/c.zoom;c.zoom=z;cropLayout()}
 document.addEventListener('pointerdown',e=>{
   if(!ui.crop||!e.target.closest||!e.target.closest('#cropbox'))return;
   e.preventDefault();try{e.target.closest('#cropbox').setPointerCapture(e.pointerId)}catch(err){}

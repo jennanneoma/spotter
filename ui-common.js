@@ -31,8 +31,9 @@ function spark(vals,w=84,h=22){
 }
 // the round progress ring, like the "100% on plan" circle
 function ring(pct,label,sub,size=74){
-  const r=size/2-6,c=2*Math.PI*r,p=Math.max(0,Math.min(100,pct||0));
-  return `<div class="ring" style="width:${size}px;height:${size}px"><svg viewBox="0 0 ${size} ${size}" aria-hidden="true"><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--line2)" stroke-width="5"/><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--accent)" stroke-width="5" stroke-linecap="round" stroke-dasharray="${c*p/100} ${c}" transform="rotate(-90 ${size/2} ${size/2})" class="glowline"/></svg><span><b class="mono">${label}</b>${sub?`<small>${sub}</small>`:''}</span></div>`;
+  // the ring fades from the theme's main colour into its second one (same colour twice on lime)
+  const r=size/2-6,c=2*Math.PI*r,p=Math.max(0,Math.min(100,pct||0)),gid='rg'+Math.random().toString(36).slice(2,8);
+  return `<div class="ring" style="width:${size}px;height:${size}px"><svg viewBox="0 0 ${size} ${size}" aria-hidden="true"><defs><linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--accent)"/><stop offset="1" style="stop-color:var(--accent2)"/></linearGradient></defs><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--line2)" stroke-width="5"/><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="url(#${gid})" stroke-width="5" stroke-linecap="round" stroke-dasharray="${c*p/100} ${c}" transform="rotate(-90 ${size/2} ${size/2})" class="glowline"/></svg><span><b class="mono">${label}</b>${sub?`<small>${sub}</small>`:''}</span></div>`;
 }
 // a simple line chart over time, used for body weight and similar
 function lineChart(points,{unit='kg',label='Chart',head=''}={}){

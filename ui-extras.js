@@ -214,10 +214,10 @@ function avatarOf(c,cls=''){return `<span class="avatar ${cls}">${c&&c.avatar?`<
 // the pop-up for moving and zooming a new profile picture (the dragging lives in app.js)
 function cropSheet(){
   const c=ui.crop;
-  return `<div class="card hud sheetcard cropsheet" role="dialog" aria-label="Adjust your picture"><div class="section-hd"><h2>Adjust picture</h2><button class="icon-btn" data-act="close-sheet" aria-label="Close">✕</button></div>
+  return `<div class="card hud sheetcard cropsheet ${c.for==='avatar'?'':'croplogo'}" role="dialog" aria-label="Adjust your ${c.for==='avatar'?'picture':'logo'}"><div class="section-hd"><h2>Adjust ${c.for==='avatar'?'picture':'logo'}</h2><button class="icon-btn" data-act="close-sheet" aria-label="Close">✕</button></div>
     <div class="cropbox" id="cropbox" aria-label="Drag to move the photo. Pinch or use the slider to zoom."><img id="crop-img" src="${c.src}" alt="" draggable="false"></div>
-    <label class="cropzoom"><span aria-hidden="true">−</span><input type="range" id="crop-zoom" min="1" max="4" step="0.01" value="${c.zoom}" data-cropzoom aria-label="Zoom"><span aria-hidden="true">+</span></label>
-    <div class="cs-actions"><button class="btn primary" data-act="crop-save">Save picture</button><button class="btn ghost" data-act="close-sheet">Cancel</button></div></div>`;
+    <label class="cropzoom"><span aria-hidden="true">−</span><input type="range" id="crop-zoom" min="${cropMin(c)}" max="4" step="0.01" value="${c.zoom}" data-cropzoom aria-label="Zoom"><span aria-hidden="true">+</span></label>
+    <div class="cs-actions"><button class="btn primary" data-act="crop-save">Save ${c.for==='avatar'?'picture':'logo'}</button><button class="btn ghost" data-act="close-sheet">Cancel</button></div></div>`;
 }
 // the coach's settings for one client: name, goal, and remove
 function clientSheet(c){
@@ -240,17 +240,18 @@ function nameSheet(c){
 }
 
 /* Themes: each person's own colours. Kept apart from the app data so Reset sample data leaves them alone. */
-const THEMES=[['lime','Lime','Black and lime, the Spotter look','#050806','#B8F24C'],['pink','Pink','Pitch black and hot pink','#000000','#FF6FB5'],['ocean','Ocean','Deep navy and sky blue','#040A10','#5CC8FF'],['violet','Violet','Midnight purple and lavender','#08060F','#B79CFF'],['ember','Ember','Warm charcoal and orange','#0C0705','#FF9A3D'],['blush','Blush','Light mode in soft pink','#FDF2F7','#C8186F'],['daylight','Daylight','Light mode in white and green','#F5F8F2','#3A7D0A']];
+const THEMES=[['lime','Lime','Black and lime, the Spotter look','#050806','#B8F24C','#B8F24C'],['pink','Pink','Pitch black, hot pink and orchid','#000000','#FF5FAE','#C77DFF'],['ocean','Lagoon','Deep sea, aqua and blue','#020B10','#3FE0D0','#4D9BFF'],['violet','Nebula','Night sky, lilac and pink','#07040F','#B98CFF','#FF6EC7'],['ember','Sunset','Dark ember, orange and gold','#0D0605','#FF8A4C','#F9C74F'],['blush','Rose','Light mode in rose and peach','#FFF5F8','#D6336C','#F08A5D'],['daylight','Mint','Light mode in mint and teal','#F3FAF6','#0B7F53','#1A9BA8']];
 const PALETTE='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-1 2-1.9 0-1.4-1-1.8-1-3 0-1 .8-1.6 1.8-1.6H17a4 4 0 0 0 4-4C21 6.2 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7.5" r="1"/><circle cx="15" cy="7.5" r="1"/></svg>';
 let themeMem={};try{themeMem=JSON.parse(localStorage.getItem('spotter-themes'))||{}}catch(e){}
-const themeOf=()=>themeMem[`${ui.user.role}:${ui.user.id}`]||'lime';
+// a theme that no longer exists (like the old Gold) falls back to lime
+const themeOf=()=>{const t=themeMem[`${ui.user.role}:${ui.user.id}`];return THEMES.some(x=>x[0]===t)?t:'lime'};
 function applyTheme(){const r=document.documentElement,t=themeOf();if(r.dataset&&r.dataset.skin!==t){r.dataset.skin=t;SpotterAnim.reset()}}
 function setTheme(t){themeMem[`${ui.user.role}:${ui.user.id}`]=t;try{localStorage.setItem('spotter-themes',JSON.stringify(themeMem))}catch(e){}applyTheme()}
 const themeButton=()=>`<button class="themebtn" data-act="theme-open">${PALETTE}Themes</button>`;
 function themeSheet(){
   const cur=themeOf();
   return `<div class="card hud sheetcard" role="dialog" aria-label="Themes"><div class="section-hd"><div><h2>Themes</h2><p class="hint">Only changes the app for you.</p></div><button class="icon-btn" data-act="close-sheet" aria-label="Close">✕</button></div>
-  <ul class="themelist">${THEMES.map(([k,n,d,bg,ac])=>`<li><button class="themeopt ${cur===k?'on':''}" data-act="theme-set" data-v="${k}" aria-pressed="${cur===k}"><span class="themeswatch" style="background:${bg}"><i style="background:${ac}"></i><i style="background:${ac}"></i></span><span><b>${n}</b><small>${d}</small></span>${cur===k?'<span class="themecheck" aria-hidden="true">✓</span>':''}</button></li>`).join('')}</ul>
+  <ul class="themelist">${THEMES.map(([k,n,d,bg,ac,ac2])=>`<li><button class="themeopt ${cur===k?'on':''}" data-act="theme-set" data-v="${k}" aria-pressed="${cur===k}"><span class="themeswatch" style="background:${bg}"><i style="background:linear-gradient(160deg,${ac},${ac2})"></i><i style="background:${ac2}"></i></span><span><b>${n}</b><small>${d}</small></span>${cur===k?'<span class="themecheck" aria-hidden="true">✓</span>':''}</button></li>`).join('')}</ul>
   <button class="btn primary big" data-act="close-sheet">Done</button></div>`;
 }
 
