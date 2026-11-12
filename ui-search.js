@@ -34,7 +34,7 @@ addEventListener('popstate',()=>{
 
 // What to call the page you'd go back to, e.g. "‹ Jennifer" or "‹ Reports"
 function pageName(p){
-  const names={clients:'Clients',invites:'Invites',reports:'Reports',templates:'Templates',exercises:'Exercises',settings:'Settings',today:'Today',meals:'Meals',progress:'Progress',chat:'Chat',exercise:'Workout'};
+  const names={clients:'Clients',invites:'Invites',reports:'Reports',templates:'Templates',exercises:'Exercises',settings:'Settings',today:'Today',progress:'Progress',chat:'Chat',exercise:'Workout'};
   if(p.view==='client'&&p.clientId){const c=client(p.clientId);if(c)return first(c.name)}
   if(p.view==='reports'&&p.repClient){const c=client(p.repClient);if(c)return first(c.name)}
   return names[p.view]||'Back';
@@ -72,8 +72,6 @@ function searchPages(){
   ];
   return[
     {t:'Today',k:'home workout train',to:'nav',v:'today'},
-    {t:'Meals',k:'food diet nutrition plan',to:'nav',v:'meals'},
-    {t:'Log a meal that wasn\'t on the plan',k:'off plan ate food swap',to:'nav',v:'meals',s:'Meals'},
     {t:'Weekly check-in',k:'checkin weight sleep stress',to:'nav',v:'progress',s:'Progress'},
     {t:'Form checks',k:'video film technique',to:'nav',v:'progress',s:'Progress'},
     {t:'Progress',k:'weight measurements photos lifts',to:'nav',v:'progress'},
@@ -87,8 +85,8 @@ function searchPages(){
     {t:'Add to home screen',k:'install app phone',to:'install-open',s:'Settings'},
   ];
 }
-// Sections inside a client's page, so "meals" can also offer "Jennifer · Meals"
-const CLIENT_TABS=[['workouts','Workouts','routine plan days'],['overload','Lifts','strength progress overload'],['meals','Meals','food diet nutrition'],['progress','Check-ins','checkin weight photos form'],['chat','Chat','messages message']];
+// Sections inside a client's page, so "lifts" can also offer "Jennifer · Lifts"
+const CLIENT_TABS=[['workouts','Workouts','routine plan days'],['overload','Lifts','strength progress overload'],['progress','Check-ins','checkin weight photos form'],['chat','Chat','messages message']];
 
 // true if every word typed shows up somewhere in the text
 const hit=(text,q)=>{const t=text.toLowerCase();return q.split(/\s+/).every(w=>t.includes(w))};
@@ -118,11 +116,6 @@ function searchGroups(q){
   const pool=coachSide?S.exercises:[...new Set((me.plan?me.plan.days:[]).flatMap(d=>d.exercises.map(r=>r.exId)))].map(exById);
   add('Exercises',pool.filter(e=>hit(e.name+' '+e.group,q)).slice(0,6).map(e=>({t:e.name,s:e.group,to:'preview-ex',id:e.id,ic:'ex',ex:e})));
   if(coachSide)add('Templates',S.templates.filter(t=>t.coachId===ui.user.id&&hit(t.name+' '+(t.desc||''),q)).map(t=>({t:t.name,s:`${t.days.filter(d=>!d.rest).length} training days`,to:'nav',v:'templates',then:`tplOpen=${t.id}`})));
-  else if(me.meals){
-    // food from the client's meal plan
-    const foods=[];for(const d of me.meals.days)for(const m of d.meals)for(const f of m.foods||[])if(f.food&&hit(f.food,q)&&!foods.some(x=>x.t===f.food))foods.push({t:f.food,s:m.name,to:'nav',v:'meals'});
-    add('Meals',foods.slice(0,5));
-  }
   // chat messages that mention what you typed (newest first)
   const msgs=[];
   for(const c of coachSide?mine:[me])for(const m of c.messages.slice().reverse())if(m.text&&hit(m.text,q)&&msgs.length<5)
@@ -140,6 +133,6 @@ function appSearchResults(q){
 }
 function searchSheet(){
   return `<div class="card hud sheetcard searchcard" role="dialog" aria-label="Search">
-    <div class="gs-bar">${SEARCH_ICON}<input type="search" id="gs-q" data-gsearch placeholder="${ui.user.role==='coach'?'Search clients, exercises, settings…':'Search workouts, meals, settings…'}" value="${esc(ui.sq||'')}" autocomplete="off" aria-label="Search"><button class="icon-btn" data-act="close-sheet" aria-label="Close">✕</button></div>
+    <div class="gs-bar">${SEARCH_ICON}<input type="search" id="gs-q" data-gsearch placeholder="${ui.user.role==='coach'?'Search clients, exercises, settings…':'Search workouts, exercises, settings…'}" value="${esc(ui.sq||'')}" autocomplete="off" aria-label="Search"><button class="icon-btn" data-act="close-sheet" aria-label="Close">✕</button></div>
     <div class="gs-results" id="gs-results">${appSearchResults(ui.sq||'')}</div></div>`;
 }

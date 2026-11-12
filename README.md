@@ -2,7 +2,7 @@
 
 Spotter is a coaching app for personal trainers and their clients...
 
-Coaches build weekly workout routines with progressive overload, plan meals for each day of the week, and follow every client's progress through reports and a training calendar. Clients see today's workout with a moving demo of each exercise, log their sets, tick off meals and message their coach.
+Coaches build weekly workout routines with progressive overload and follow every client's progress through reports and a training calendar. Clients see today's workout with a moving demo of each exercise, log their sets, send weekly check-ins and message their coach.
 
 ## To Try it you need to....
 
@@ -12,9 +12,9 @@ This is a front-end prototype. It runs on sample data saved in your browser, and
 
 ## What's in it
 
-- **Coach:** clients, invites, routines with weekly weight increases, meal plans, templates, reports and a calendar of what each client did. A single date can be changed on its own, or the change applied to that weekday from then on. Weekly check-ins and form-check videos to reply to
-- **Client:** today's workout, set logging with rest timer, energy check, meals (including logging something off the plan), a weekly check-in, form-check videos, progress photos, body weight and measurements, chat with the coach
-- **Search:** one search box for clients, exercises, meals, messages and every setting
+- **Coach:** clients, invites, routines with weekly weight increases, templates, reports and a calendar of what each client did. A single date can be changed on its own, or the change applied to that weekday from then on. Weekly check-ins and form-check videos to reply to
+- **Client:** today's workout, set logging with rest timer, energy check, a weekly check-in, form-check videos, progress photos, body weight and measurements, a profile picture, chat with the coach
+- **Search:** one search box for clients, exercises, messages and every setting
 - **Settings:** check-in day, reminders, notifications, themes and a data download
 - **Install:** can be added to a phone's home screen
 - **Themes:** lime (default), pink, ocean, violet, ember, blush and a light theme(might remove this feature)

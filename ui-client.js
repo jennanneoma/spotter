@@ -1,13 +1,12 @@
 /* ui-client.js: everything the client sees.
-   clientApp() picks the page (Today, Meals, Progress, Chat...), then the functions below draw it. */
+   clientApp() picks the page (Today, Progress, Chat...), then the functions below draw it. */
 function clientApp(){
   const c=client(ui.user.id),co=coach(c.coachId);
   if(c.archived)return `<main class="screen"><div class="card hud empty"><p class="eyebrow">Program complete</p><h1>Nice work, ${esc(first(myName(c)))}</h1><p class="muted">${esc(co.name)} has closed your program. Your workouts and progress are saved, and they can reopen your account anytime.</p><p class="hint">${c.logs.length} workouts logged · best streak kept on file.</p></div></main>`;
   if(isInvited(c))return joinView(c);
-  const v=['today','exercise','meals','progress','chat','settings'].includes(ui.view)?ui.view:'today';
+  const v=['today','exercise','progress','chat','settings'].includes(ui.view)?ui.view:'today';
   let body;
   if(v==='exercise')body=exerciseView(c);
-  else if(v==='meals')body=clientMeals(c);
   else if(v==='progress')body=clientProgress(c);
   else if(v==='settings')body=settingsView();
   else if(v==='chat'){c.clientRead=Date.now();save();body=`<header class="hd"><p class="eyebrow">Your coach</p><h1>${esc(co.name)}</h1></header>${chatView(c,'client')}`}
@@ -15,7 +14,7 @@ function clientApp(){
   const pend=pendingCount(c);
   const off=!S.online?`<div class="offline"><span class="blink">●</span><span><b>Offline.</b> ${pend?`${pend} change${pend>1?'s':''} saved on this phone. They sync when you reconnect.`:'Everything you log is saved on this phone and syncs later.'}</span></div>`:'';
   const hello=v==='today'?`<div class="hello"><span>Hi, <b>${esc(first(myName(c)))}</b></span></div>`:'';
-  return appBar(co)+`<main class="screen">${hello}${off}${body}</main>`+tabbar([['today','Today'],['meals','Meals'],['progress','Progress'],['chat','Chat',v==='chat'?0:c.messages.filter(m=>m.from==='coach'&&m.ts>(c.clientRead||0)).length]],v==='exercise'?'today':v);
+  return appBar(co)+`<main class="screen">${hello}${off}${body}</main>`+tabbar([['today','Today'],['progress','Progress'],['chat','Chat',v==='chat'?0:c.messages.filter(m=>m.from==='coach'&&m.ts>(c.clientRead||0)).length]],v==='exercise'?'today':v);
 }
 // the Today page: today's workout, the week strip, streaks and the energy check
 function todayView(c){
@@ -107,19 +106,6 @@ function finishSheet(c){
   <div><span class="eyebrow">How hard was it? (effort out of 10)</span><div class="seg10">${[1,2,3,4,5,6,7,8,9,10].map(n=>`<button class="${rpe===n?'on':''}" data-act="rpe" data-v="${n}">${n}</button>`).join('')}</div><p class="hint">6 = easy, 8 = 2 reps left, 10 = nothing left.</p></div>
   <label class="xnote">Anything ${esc(first(coach(c.coachId).name))} should know about today? (optional)<textarea id="fin-note" data-fnote rows="2" placeholder="e.g. Short on time, skipped the last set of curls">${esc(ui.finishing.note||'')}</textarea></label>
   <button class="btn primary big" data-act="finish" ${rpe?'':'disabled'}>Save workout</button></div>`;
-}
-// the Meals page: today's meals to tick off, or any other day of the week
-function clientMeals(c){
-  if(!c.meals)return `<header class="hd"><h1>Meals</h1></header><div class="card hud empty"><h2>No meal plan yet</h2><p class="muted">${esc(coach(c.coachId).name)} hasn't added your meals yet.</p></div>`;
-  const ti=weekIdx(today()),sel=ui.cMealDay??ti,day=c.meals.days[sel],date=addDays(mondayOf(today()),sel),isToday=sel===ti,ticks=c.mealTicks[date]||{};
-  const eaten=day.meals.filter(m=>ticks[m.id]).reduce((t,m)=>{const x=mealTotals(m);return{kcal:t.kcal+x.kcal,protein:t.protein+x.protein}},{kcal:0,protein:0}),plan=dayTotals(day);
-  const tk=day.kcal||plan.kcal,tp=day.protein||plan.protein;
-  return `<header class="hd"><p class="eyebrow">${isToday?'Today':date<today()?'Earlier this week':'Coming up'}</p><h1>${WKL[sel]}</h1></header>
-  ${weekStrip(c,sel,'cmeal-day',c.meals.days)}
-  <div class="hudrow">${ring(tk?eaten.kcal/tk*100:0,Math.round(eaten.kcal),'of '+tk+' kcal',96)}${ring(tp?eaten.protein/tp*100:0,Math.round(eaten.protein)+'g','of '+tp+' g protein',96)}</div>
-  ${isToday?'':'<p class="hint">You can tick meals on the day itself.</p>'}
-  <div class="meals">${day.meals.map(m=>{const t=mealTotals(m);return `<button class="meal ${ticks[m.id]?'on':''}" ${isToday?`data-act="tick-meal" data-meal="${m.id}"`:'disabled'} aria-pressed="${!!ticks[m.id]}"><span class="box">✓</span><span class="mb"><span class="mhead"><b>${esc(m.name)}${swappedMeal(c,date,m.id,'client')?' <span class="pill warn">Swapped</span>':''}</b><small class="mono">${t.kcal} kcal · ${t.protein} g</small></span><ul>${m.foods.map(f=>`<li><span>${esc(f.food)}</span><span>${esc(f.portion)}</span></li>`).join('')}</ul></span></button>`}).join('')||'<p class="hint">Nothing planned for this day.</p>'}</div>
-  ${mealXList(c,date,'client')}${date<=today()&&day.meals.length?'<button class="linkbtn mxlink" data-act="mx-open">+ Ate something that wasn\'t on the plan</button>':''}`;
 }
 // the Progress page: weekly check-in, form checks, weight, measurements and photos
 function clientProgress(c){

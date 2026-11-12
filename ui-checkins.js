@@ -1,5 +1,5 @@
 /* ui-checkins.js: four features that came later.
-   1. weekly check-in   2. form-check videos   3. meals that weren't on the plan   4. adding the app to your home screen */
+   1. weekly check-in   2. form-check videos   3. adding the app to your home screen */
 
 /* ---------- weekly check-in ---------- */
 /* One per week (c.checkins, keyed by its Monday). Weight and measurements also go to the usual history. */
@@ -47,19 +47,13 @@ function checkinNudge(c){
   if(ciDue(c)&&pref(c,'ciRemind'))return `<button class="invlink nudge" data-act="nav" data-v="progress"><span><b>Weekly check-in</b> · about two minutes</span><span class="chev" aria-hidden="true">›</span></button>`;
   return '';
 }
-function mealsPct(c,mon){
-  if(!c.meals)return null;let n=0,t=0;const T=today();
-  for(let i=0;i<7;i++){const d=addDays(mon,i);if(d>T||(c.meals.since&&d<c.meals.since))continue;const md=c.meals.days[i];if(!md)continue;
-    const tk=Object.values(c.mealTicks[d]||{}).filter(x=>x.synced!==false).length;if(d<T||tk){n+=md.meals.length;t+=Math.min(tk,md.meals.length)}}
-  return n?Math.round(t/n*100):null;
-}
 const replyBlock=(form,x,who)=>x.reply?`<div class="coachnote"><span class="eyebrow">Your reply</span><p>${esc(x.reply.text)}</p></div>`
   :`<form class="replyform" data-form="${form}" data-id="${x.id}"><textarea name="text" id="rp-${x.id}" rows="2" placeholder="Reply to ${who}" aria-label="Reply to ${who}"></textarea><button class="btn primary sm">Send reply</button></form>`;
 /* Coach: everything the client sent, in one tab. Unanswered first, answered weeks fold into one line. */
 function coachCheckins(c){
   const cis=visCi(c),fcs=visFc(c),who=esc(first(c.name)),T=today();
-  const full=ci=>{const w=clientWeek(c,ci.week),bits=[],mp=mealsPct(c,ci.week),end=addDays(ci.week,6);
-    if(w.planned)bits.push(`${w.done} of ${w.planned} workouts`);if(w.energy!=null)bits.push(`energy ${w.energy}/100`);if(mp!=null)bits.push(`${mp}% of meals`);
+  const full=ci=>{const w=clientWeek(c,ci.week),bits=[],end=addDays(ci.week,6);
+    if(w.planned)bits.push(`${w.done} of ${w.planned} workouts`);if(w.energy!=null)bits.push(`energy ${w.energy}/100`);
     const ph=c.photos.filter(p=>p.synced!==false&&p.date>=ci.week&&p.date<=end),ms=(c.measures||[]).filter(m=>m.synced!==false&&m.date>=ci.week&&m.date<=end).slice(-1)[0];
     return `<article class="cicard ${ci.reply?'':'new'}"><div class="section-hd"><div><p class="eyebrow">${weekName(c,ci.week)||'Week'} · ${weekRange(ci.week)}</p><h3>Sent ${ci.date===T?'today':fmtDate(ci.date)}</h3></div>${ci.reply?`<button class="icon-btn" data-act="ci-open" data-id="${ci.id}" aria-label="Fold away">▴</button>`:'<span class="pill acc">New</span>'}</div>
       ${ciFacts(c,ci)}${bits.length?`<p class="hint">From the app: ${bits.join(' · ')}</p>`:''}${ci.note?`<p class="ci-note">“${esc(ci.note)}”</p>`:''}
@@ -101,25 +95,6 @@ function formCheckBox(c,r){
     ${!now.length&&past?`<div class="coachnote"><span class="eyebrow">Your last form check · ${cn} said</span><p>${esc(past.reply.text)}</p></div>`:''}`;
 }
 const fcButton=(c,r)=>`<label class="btn swapbtn" for="fc-${r.id}">${CAM} ${(c.formChecks||[]).some(x=>x.exId===r.exId&&x.date===today())?'Send another':'Form check'}<input type="file" id="fc-${r.id}" accept="video/*" data-fcfile="${r.exId}" hidden></label>`;
-
-/* ---------- meals that weren't on the plan ---------- */
-/* c.mealLog[date] = [{instead: planned meal id or null for an extra, text, photo}]. The plan itself never changes. */
-const mealXs=(c,d)=>((c.mealLog||{})[d]||[]);
-const swappedMeal=(c,d,id,role)=>mealXs(c,d).some(x=>x.instead===id&&(role==='client'||x.synced!==false));
-function mealXList(c,date,role){
-  const xs=mealXs(c,date).filter(x=>role==='client'||x.synced!==false),day=c.meals&&c.meals.days[weekIdx(date)];if(!xs.length)return'';
-  const nm=id=>{const m=day&&day.meals.find(y=>y.id===id);return m?m.name:'a planned meal'};
-  return `<div class="mxlist"><span class="eyebrow">${role==='client'?'Off the plan':`${esc(first(c.name))} ate off the plan`}</span>${xs.map(x=>`<div class="mxitem">${x.photo?`<img src="${x.photo}" alt="Photo of the meal">`:''}<span><b>${esc(x.text||'Photo only')}</b><small>${x.instead?`Instead of ${esc(nm(x.instead))}`:'Extra, on top of the plan'} · ${fmtClock(x.ts)}</small></span>${role==='client'?`<button class="icon-btn" data-act="mx-del" data-d="${date}" data-id="${x.id}" aria-label="Remove">✕</button>`:''}</div>`).join('')}</div>`;
-}
-// pop-up for logging a meal that wasn't on the plan
-function mxSheet(c){
-  const m=ui.mealX,day=c.meals.days[weekIdx(m.date)];
-  return `<form class="card hud sheetcard" data-form="mx" role="dialog" aria-label="Log a meal"><div><div class="section-hd"><h2>What did you eat?</h2><button type="button" class="icon-btn" data-act="close-sheet" aria-label="Close">✕</button></div><p class="hint">${m.date===today()?'Today':fmtDate(m.date)} · ${esc(first(coach(c.coachId).name))} sees it next to your plan. Your plan stays the same.</p></div>
-    <div class="mxpick"><span class="eyebrow">Instead of</span><div class="chips">${day.meals.map(x=>`<button type="button" class="chip ${m.instead===x.id?'on':''}" data-act="mx-pick" data-v="${x.id}">${esc(x.name)}</button>`).join('')}<button type="button" class="chip ${!m.instead?'on':''}" data-act="mx-pick" data-v="">Extra</button></div></div>
-    <label>What you had<input id="mx-text" data-mx="text" value="${esc(m.text)}" placeholder="e.g. Burrito bowl from the canteen" maxlength="120"></label>
-    <label class="mxphoto" for="mx-photo">${m.photo?`<img src="${m.photo}" alt="Your photo">`:'<span>+ Add a photo (optional)</span>'}<input type="file" id="mx-photo" accept="image/*" data-mxphoto hidden></label>
-    <button class="btn primary big">Save</button></form>`;
-}
 
 /* ---------- add to home screen ---------- */
 let installEvt=null;

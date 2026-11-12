@@ -5,15 +5,14 @@
 const SPOTTER_MARK='<svg class="smark" viewBox="0 0 64 64" aria-hidden="true"><path d="M44 17H24a8 8 0 0 0 0 16h16a8 8 0 0 1 0 16H20" fill="none" stroke="currentColor" stroke-width="6"/><g fill="currentColor"><rect x="44" y="10" width="4.5" height="14" rx="1.5"/><rect x="50.5" y="6" width="6.5" height="22" rx="2"/><rect x="15.5" y="42" width="4.5" height="14" rx="1.5"/><rect x="7" y="38" width="6.5" height="22" rx="2"/></g></svg>';
 /* ui = what's on screen right now (which page, which tab, what's open).
    It is NOT saved. S (in data.js) is the real data and that IS saved. */
-const ui={user:{role:'coach',id:'co1'},view:'clients',clientId:null,tab:'workouts',drafts:{},mealDrafts:{},mealDay:null,chooser:null,rowId:null,
-  libGroup:'All',libQ:'',preview:null,olEx:null,cMealDay:null,ready:null,finishing:null,confirm:null,showPast:false,copyOpen:false};
+const ui={user:{role:'coach',id:'co1'},view:'clients',clientId:null,tab:'workouts',drafts:{},chooser:null,rowId:null,
+  libGroup:'All',libQ:'',preview:null,olEx:null,ready:null,finishing:null,confirm:null,showPast:false,copyOpen:false};
 
 const ICON={
   clients:'<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.8a3.3 3.3 0 0 1 0 6.4M18 14.8c1.9.7 3.1 2.4 3.5 5.2"/></svg>',
   exercises:'<svg viewBox="0 0 24 24"><path d="M3 9v6M6 6.5v11M18 6.5v11M21 9v6M6 12h12"/></svg>',
   templates:'<svg viewBox="0 0 24 24"><rect x="4" y="3.5" width="12" height="15" rx="1"/><path d="M8 21h10a2 2 0 0 0 2-2V7"/><path d="M7.5 8h5M7.5 11.5h5"/></svg>',
   today:'<svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>',
-  meals:'<svg viewBox="0 0 24 24"><path d="M7 3v8M4.5 3v5a2.5 2.5 0 0 0 5 0V3M7 11v10"/><path d="M17 3c-2 1.5-3 4-3 7h3v11"/></svg>',
   reports:'<svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
   progress:'<svg viewBox="0 0 24 24"><path d="M3.5 19.5h17"/><path d="M5 15l4.5-4.5 3.5 3 6-7"/><path d="M15 6.5h4v4"/></svg>',
   invites:'<svg viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="1.5"/><path d="M3.5 7l8.5 6 8.5-6"/></svg>',
@@ -34,10 +33,6 @@ function spark(vals,w=84,h=22){
 function ring(pct,label,sub,size=74){
   const r=size/2-6,c=2*Math.PI*r,p=Math.max(0,Math.min(100,pct||0));
   return `<div class="ring" style="width:${size}px;height:${size}px"><svg viewBox="0 0 ${size} ${size}" aria-hidden="true"><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--line2)" stroke-width="5"/><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--accent)" stroke-width="5" stroke-linecap="round" stroke-dasharray="${c*p/100} ${c}" transform="rotate(-90 ${size/2} ${size/2})" class="glowline"/></svg><span><b class="mono">${label}</b>${sub?`<small>${sub}</small>`:''}</span></div>`;
-}
-function bar(val,target,label){
-  const p=target?Math.min(100,val/target*100):0;
-  return `<div class="mbar"><div class="mbar-t"><span>${label}</span><span class="mono">${Math.round(val)}${target?` / ${target}`:''}</span></div><div class="mbar-b"><i style="width:${p}%"></i></div></div>`;
 }
 // a simple line chart over time, used for body weight and similar
 function lineChart(points,{unit='kg',label='Chart',head=''}={}){

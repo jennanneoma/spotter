@@ -104,7 +104,7 @@ function seed(){
   const row=(n,sets,reps,rest,weight='',prog=0,note='')=>({id:uid(),exId:ex(n),sets,reps,rest,weight,prog:{type:prog?"earned":"none",step:prog||2.5,every:1},note});
   const day=(name,rows)=>({id:uid(),name:cleanTitle(name),rest:false,exercises:rows});
   const rest=()=>({id:uid(),name:'',rest:true,exercises:[]});
-  const mk=o=>({id:uid(),logs:[],weights:[],photos:[],messages:[],notes:[],mealTicks:{},meals:null,plan:null,session:null,readiness:{},progressions:[],planHistory:[],swaps:{},swapFeed:[],measures:[],checkins:[],formChecks:[],mealLog:{},dayEdits:{},reminder:{on:false,time:'07:00'},coachRead:0,notesSeen:0,status:'active',...o});
+  const mk=o=>({id:uid(),logs:[],weights:[],photos:[],messages:[],notes:[],plan:null,session:null,readiness:{},progressions:[],planHistory:[],swaps:{},swapFeed:[],measures:[],checkins:[],formChecks:[],dayEdits:{},reminder:{on:false,time:'07:00'},coachRead:0,notesSeen:0,status:'active',...o});
 
   const sam=mk({id:'cl1',coachId:'co1',name:"Client 1",goal:'Lose fat, keep strength'});
   sam.plan={id:uid(),name:'Push, pull, legs',startDate:addDays(T,-29),days:[
@@ -126,12 +126,8 @@ function seed(){
   const setProg=(c,name,prog,weight)=>{for(const d of c.plan.days)for(const r of d.exercises)if(r.exId===ex(name)){r.prog={every:1,...prog};if(weight!==undefined)r.weight=weight;if(prog.type==='weekly')r.since=mondayOf(T)}};
   setProg(sam,'Romanian Deadlift',{type:'weekly',step:5});
   setProg(sam,'Back Squat',{type:'sets',step:2.5},80);
-  sam.meals=weekMeals(sam,T);
-  const mon=mondayOf(T);
-  for(let i=0;i<weekIdx(T);i++){const d=addDays(mon,i),m=sam.meals.days[i].meals;sam.mealTicks[d]={};m.forEach((x,j)=>{if(j<m.length-(i%2))sam.mealTicks[d][x.id]={synced:true}})}
-  sam.mealTicks[T]={[sam.meals.days[weekIdx(T)].meals[0].id]:{synced:true}};
   sam.messages=[{from:'coach',text:'Strong squats on Friday. Your bench target went up to '+kg(sam.plan.days[0].exercises[0].weight)+' kg.',ts:Date.now()-2*864e5},{from:'client',text:'Felt good. Overhead press is still stuck though.',ts:Date.now()-2*864e5+3600e3},{from:'coach',text:"I see it on your overload chart. We'll fix it, try paused reps this week.",ts:Date.now()-864e5}];
-  sam.notes=[{id:uid(),text:'Immanuel changed your routine. Friday now ends with jump rope.',go:'today',ts:Date.now()-864e5},{id:uid(),text:'Immanuel edited your meal plan.',go:'meals',ts:Date.now()-3*864e5}];
+  sam.notes=[{id:uid(),text:'Immanuel changed your routine. Friday now ends with jump rope.',go:'today',ts:Date.now()-864e5}];
   sam.notifRead=Date.now()-2*864e5;
   sam.ciSeen=Date.now();
   sam.coachRead=Date.now();
@@ -157,7 +153,6 @@ function seed(){
     const sq=lastOf('Back Squat'),op=lastOf('Overhead Press');
     if(sq)sam.formChecks.push({id:uid(),date:sq.date,exId:ex('Back Squat'),note:'Is my depth okay on the last rep?',ts:sq.finishedAt-600e3,synced:true,sample:true,reply:{text:'Depth is good. Keep your chest up as you drive out of the bottom.',ts:sq.finishedAt+5400e3}});
     if(op)sam.formChecks.push({id:uid(),date:op.date,exId:ex('Overhead Press'),note:'Still stuck on this one. Is my bar path off?',ts:op.finishedAt-900e3,synced:true,sample:true,reply:null});
-    const lunch=sam.meals.days[weekIdx(T)].meals[1];if(lunch)sam.mealLog[T]=[{id:uid(),instead:lunch.id,text:'Chicken burrito bowl from the canteen',photo:null,ts:Date.now()-2*36e5,synced:true}];
     for(let i=2;i<10;i++){const d=addDays(T,i),inf=dayAt(sam,d);if(inf.day&&!inf.day.rest&&inf.day.exercises.length>3){const day=clone(inf.day);day.name=day.name+', lighter';day.exercises=day.exercises.slice(0,-1);sam.dayEdits[d]=day;break}}
   }
 
@@ -221,21 +216,7 @@ function seed(){
     for(let i=n;i>=1;i--)c.readiness[addDays(T,-i)]={sleep:3+Math.floor(R()*3),energy:3+Math.floor(R()*3),sore:1+Math.floor(R()*3),synced:true};
     void todayVals;
   }
-  function weekMeals(c,T){
-    const f=(food,portion,kcal,protein)=>({id:uid(),food,portion,kcal,protein});
-    const train={kcal:2500,protein:185,meals:[
-      {name:'Breakfast',foods:[f('Oats','80 g',300,10),f('Whey protein','1 scoop',120,24),f('Blueberries','100 g',57,1),f('Milk','250 ml',160,8)]},
-      {name:'Lunch',foods:[f('Chicken breast','200 g',330,62),f('Rice, cooked','250 g',325,6),f('Broccoli','150 g',51,4)]},
-      {name:'Pre-workout',foods:[f('Banana','1 medium',105,1),f('Greek yogurt','200 g',190,20)]},
-      {name:'Dinner',foods:[f('Salmon','180 g',370,40),f('Potatoes','350 g',270,7),f('Green salad','1 bowl',40,2),f('Olive oil','1 tbsp',120,0)]}]};
-    const restM={kcal:2100,protein:170,meals:[
-      {name:'Breakfast',foods:[f('Eggs','3 large',215,19),f('Wholegrain toast','2 slices',160,8),f('Avocado','half',120,1)]},
-      {name:'Lunch',foods:[f('Turkey wrap','1 wrap',420,35),f('Apple','1 medium',95,0)]},
-      {name:'Snack',foods:[f('Greek yogurt','250 g',240,25),f('Almonds','25 g',145,5)]},
-      {name:'Dinner',foods:[f('Lean beef mince','200 g',340,52),f('Sweet potato','250 g',215,4),f('Green beans','150 g',47,3)]}]};
-    const m=mondayOf(T);
-    return{since:m,days:Array.from({length:7},(_,i)=>{const inf=dayAt(c,addDays(m,i));const src=inf.day&&!inf.day.rest?train:restM;const d=clone(src);d.meals.forEach(x=>{x.id=uid();x.foods.forEach(y=>y.id=uid())});return d})};
-  }
+
 }
 
 /* ---------- looking things up ----------
@@ -344,15 +325,12 @@ function adherence(c){
   const T=today(),mon=mondayOf(T);let want=0,got=0;
   for(let i=0;i<=weekIdx(T);i++){const d=addDays(mon,i),inf=dayAt(c,d);
     if(inf.day&&!inf.day.rest&&d<T){want++;if(c.logs.some(l=>l.date===d))got++}
-    if(inf.day&&!inf.day.rest&&d===T&&c.logs.some(l=>l.date===d)){want++;got++}
-    const md=c.meals&&c.meals.days[i];if(md&&d<=T){const ms=md.meals.length;const tk=Object.keys(c.mealTicks[d]||{}).length;want+=d<T?ms:tk;got+=tk}}
+    if(inf.day&&!inf.day.rest&&d===T&&c.logs.some(l=>l.date===d)){want++;got++}}
   return want?Math.round(got/want*100):null;
 }
 // how many things the client saved while offline that haven't reached the coach yet
 function pendingCount(c){
   let n=[...c.logs,...c.weights,...c.photos,...c.messages,...c.progressions,...(c.swapFeed||[]),...(c.measures||[]),...(c.checkins||[]),...(c.formChecks||[])].filter(x=>x.synced===false).length;
-  for(const d in c.mealLog||{})n+=c.mealLog[d].filter(x=>x.synced===false).length;
-  for(const d in c.mealTicks)for(const m in c.mealTicks[d])if(c.mealTicks[d][m].synced===false)n++;
   for(const d in c.readiness)if(c.readiness[d].synced===false)n++;
   return n;
 }
@@ -361,10 +339,6 @@ function syncAll(){
   let n=0;
   for(const c of S.clients){n+=pendingCount(c);
     [...c.logs,...c.weights,...c.photos,...c.messages,...c.progressions,...(c.swapFeed||[]),...(c.measures||[]),...(c.checkins||[]),...(c.formChecks||[])].forEach(x=>x.synced=true);
-    for(const d in c.mealLog||{})c.mealLog[d].forEach(x=>x.synced=true);
-    for(const d in c.mealTicks)for(const m in c.mealTicks[d])c.mealTicks[d][m].synced=true;
     for(const d in c.readiness)c.readiness[d].synced=true;}
   return n;
 }
-const dayTotals=d=>d.meals.reduce((t,m)=>{m.foods.forEach(f=>{t.kcal+=+f.kcal||0;t.protein+=+f.protein||0});return t},{kcal:0,protein:0});
-const mealTotals=m=>m.foods.reduce((t,f)=>({kcal:t.kcal+(+f.kcal||0),protein:t.protein+(+f.protein||0)}),{kcal:0,protein:0});

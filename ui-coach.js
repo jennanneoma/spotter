@@ -50,7 +50,7 @@ function clientsView(co){
     ${ui.confirm&&ui.confirm.id===c.id&&ui.confirm.kind==='delete'?`<span class="confirm-inline"><span class="bad-t">Delete forever?</span><button class="btn danger sm" data-act="delete-client" data-id="${c.id}">Delete</button><button class="btn ghost sm" data-act="cancel-confirm">Keep</button></span>`
     :`<span class="btnrow"><button class="btn sm" data-act="restore-client" data-id="${c.id}">Restore</button><button class="icon-btn" data-act="ask-delete" data-id="${c.id}">Delete</button></span>`}</li>`).join('')}</ul>`:''}</section>`:''}`;
 }
-// one client's page: their name, tags, and the tabs (Workouts, Lifts, Meals, Check-ins, Chat)
+// one client's page: their name, tags, and the tabs (Workouts, Lifts, Check-ins, Chat)
 function coachClient(co){
   const c=client(ui.clientId);
   if(!c||c.coachId!==co.id||c.archived){ui.view='clients';return clientsView(co)}
@@ -58,17 +58,16 @@ function coachClient(co){
   if(ui.tab==='chat'){c.coachRead=Date.now();save()}
   if(ui.tab==='workouts'&&(newNotes(c).length||newSwaps(c).length)){ui.seenBefore={id:c.id,t:c.notesSeen||0};c.notesSeen=Date.now();save()}
   const unread=c.messages.filter(m=>m.from==='client'&&m.synced!==false&&m.ts>c.coachRead).length;
-  const tabs=isInvited(c)?[['workouts','Workouts'],['meals','Meals']]:[['workouts','Workouts'],['overload','Lifts'],['meals','Meals'],['progress','Check-ins'+(toAnswer(c)?` (${toAnswer(c)})`:'')],['chat','Chat'+(unread?` (${unread})`:'')]];
+  const tabs=isInvited(c)?[['workouts','Workouts']]:[['workouts','Workouts'],['overload','Lifts'],['progress','Check-ins'+(toAnswer(c)?` (${toAnswer(c)})`:'')],['chat','Chat'+(unread?` (${unread})`:'')]];
   if(!tabs.some(t=>t[0]===ui.tab))ui.tab='workouts';
   let body='';
   if(ui.tab==='workouts')body=coachWorkouts(c);
   else if(ui.tab==='report')body=reportView(c);
   else if(ui.tab==='overload')body=overloadView(c,'coach');
-  else if(ui.tab==='meals')body=coachMeals(c);
   else if(ui.tab==='progress')body=coachCheckins(c)+`<h2>Body weight</h2>${weightChart(visW(c))}<h2>Body measurements</h2>${measurementsView(c,'coach')}<h2>Progress photos</h2>${photosHistory(c.photos.filter(p=>p.synced!==false))}`;
   else body=chatView(c,'coach');
   return `<div class="exbar">${backBtn('clients','Clients')}<button class="iconbtn" data-act="client-set" data-id="${c.id}" aria-label="${esc(first(c.name))}'s settings" title="Client settings">${GEAR}</button></div>
-  ${isInvited(c)?`<div class="note-banner"><p>${esc(first(c.name))} hasn't joined yet. Build their routine and meals now, and they'll be ready when they do.</p></div>`:''}
+  ${isInvited(c)?`<div class="note-banner"><p>${esc(first(c.name))} hasn't joined yet. Build their routine now, and it'll be ready when they do.</p></div>`:''}
   <div class="chead">${avatarOf(c,'big')}<h1>${esc(c.name)}</h1><p class="sub">${esc(c.goal||'No goal set')}</p></div>
   <div class="chips-row">${readyPill(st.ready)}${alertsFor(c,st,overloadSummary(c)).join('')}</div>
   <div class="tabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${k===ui.tab}" class="${k===ui.tab?'on':''}" data-act="tab" data-v="${k}">${l}</button>`).join('')}</div>

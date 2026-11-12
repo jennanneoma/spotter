@@ -211,6 +211,14 @@ function weeklySummaryView(co){
 const myName=c=>c.selfName||c.name;
 // a client's round picture, or their initials when they haven't added one
 function avatarOf(c,cls=''){return `<span class="avatar ${cls}">${c&&c.avatar?`<img src="${c.avatar}" alt="">`:initials(c?c.name:'')}</span>`}
+// the pop-up for moving and zooming a new profile picture (the dragging lives in app.js)
+function cropSheet(){
+  const c=ui.crop;
+  return `<div class="card hud sheetcard cropsheet" role="dialog" aria-label="Adjust your picture"><div class="section-hd"><h2>Adjust picture</h2><button class="icon-btn" data-act="close-sheet" aria-label="Close">✕</button></div>
+    <div class="cropbox" id="cropbox" aria-label="Drag to move the photo. Pinch or use the slider to zoom."><img id="crop-img" src="${c.src}" alt="" draggable="false"></div>
+    <label class="cropzoom"><span aria-hidden="true">−</span><input type="range" id="crop-zoom" min="1" max="4" step="0.01" value="${c.zoom}" data-cropzoom aria-label="Zoom"><span aria-hidden="true">+</span></label>
+    <div class="cs-actions"><button class="btn primary" data-act="crop-save">Save picture</button><button class="btn ghost" data-act="close-sheet">Cancel</button></div></div>`;
+}
 // the coach's settings for one client: name, goal, and remove
 function clientSheet(c){
   if(!c)return'';
@@ -254,7 +262,7 @@ function invitesView(co){
     return `<li class="invrow ${open?'open':''}"><button class="invhead" data-act="inv-open" data-id="${c.id}" aria-expanded="${open}">${avatarOf(c,'dim')}<span class="cname">${esc(c.name)}<small>Sent ${rel(c.invitedAt).toLowerCase()}${age>=7?' · worth a reminder':''}</small></span><span class="pill ${age>=7?'warn':''}">Pending</span><span class="chev" aria-hidden="true">${open?'▴':'▾'}</span></button>
     ${open?`<div class="invbody"><div class="linkbox"><span class="mono" id="link-${c.id}">${inviteLink(c).replace('https://','')}</span><button class="btn sm" data-act="copy-invite" data-id="${c.id}">Copy link</button></div>
       <div class="btnrow"><a class="btn primary" href="https://wa.me/?text=${encodeURIComponent(inviteMsg(c,co))}" target="_blank" rel="noopener">Send on WhatsApp</a><button class="btn" data-act="copy-invite" data-id="${c.id}" data-msg="1">Copy message</button></div>
-      ${del?`<div class="confirm-inline"><span class="bad-t">Cancel this invite? The link stops working${c.plan||c.meals?' and the routine you built is removed':''}.</span><button class="btn danger sm" data-act="inv-cancel" data-id="${c.id}">Cancel invite</button><button class="btn ghost sm" data-act="cancel-confirm">Keep</button></div>`
+      ${del?`<div class="confirm-inline"><span class="bad-t">Cancel this invite? The link stops working${c.plan?' and the routine you built is removed':''}.</span><button class="btn danger sm" data-act="inv-cancel" data-id="${c.id}">Cancel invite</button><button class="btn ghost sm" data-act="cancel-confirm">Keep</button></div>`
       :`<div class="invlinks"><button class="icon-btn" data-act="open-client" data-id="${c.id}">${c.plan?'Edit their routine':'Build their routine'}</button><button class="icon-btn" data-act="new-invite" data-id="${c.id}">New link</button><button class="icon-btn" data-act="inv-ask-cancel" data-id="${c.id}">Cancel invite</button></div>`}</div>`:''}</li>`};
   return `<header class="hd"><h1>Invites</h1><p class="sub">${pending.length?`${pending.length} waiting to join`:'Nobody waiting to join'}, ${joined.length} joined.</p></header>
   <form class="card hud" data-form="add-client"><h3>Invite a client</h3><div class="row2"><label>Name<input id="nc-name" name="name" required placeholder="e.g. Taylor Brooks" maxlength="40"></label><label>Goal (optional)<input id="nc-goal" name="goal" placeholder="e.g. Lose 5 kg" maxlength="80"></label></div><button class="btn primary">Create invite link</button></form>
@@ -268,7 +276,7 @@ const NBELL='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-w
 function notifications(){
   if(ui.user.role==='client'){const c=client(ui.user.id),cn=first(coach(c.coachId).name);
     const msgs=c.messages.filter(m=>m.from==='coach').slice(-5).map(m=>({ts:m.ts,text:`${cn} sent you a message.`,go:'chat'}));
-    return[...c.notes.map(n=>({ts:n.ts,text:n.text,go:n.go||'today'})).filter(n=>pref(c,n.go==='meals'?'nMeals':'nRoutine')),...(pref(c,'nMsgs')?msgs:[])].sort((a,b)=>b.ts-a.ts).slice(0,15)}
+    return[...c.notes.map(n=>({ts:n.ts,text:n.text,go:n.go||'today'})).filter(n=>n.go!=='meals'&&pref(c,'nRoutine')),...(pref(c,'nMsgs')?msgs:[])].sort((a,b)=>b.ts-a.ts).slice(0,15)}
   const out=[],since=Date.now()-21*864e5,me=coach(ui.user.id);
   for(const c of S.clients.filter(x=>x.coachId===ui.user.id&&!x.archived)){
     if(c.joinedTs&&pref(me,'nJoins'))out.push({ts:c.joinedTs,text:c.invitedAs&&c.invitedAs!==c.name?`${c.invitedAs} accepted your invite and joined as ${c.name}.`:`${c.name} accepted your invite.`,id:c.id,tab:'workouts'});
@@ -278,8 +286,7 @@ function notifications(){
       else if(nt)out.push({ts:l.finishedAt,text:`${c.name} left you a note on ${l.dayName}.`,id:c.id,tab:'workouts'})}
     if(pref(me,'nNotes')){for(const s of c.swapFeed||[])if(s.synced!==false)out.push({ts:s.ts,text:`${c.name} swapped ${exById(s.from).name} for ${exById(s.to).name}.`,id:c.id,tab:'workouts'});
       for(const x of visCi(c))if(x.ts>=since)out.push({ts:x.ts,text:`${c.name} sent their weekly check-in.`,id:c.id,tab:'progress'});
-      for(const x of visFc(c))if(x.ts>=since)out.push({ts:x.ts,text:`${c.name} sent a form check on ${exById(x.exId).name}.`,id:c.id,tab:'progress'});
-      for(const d in c.mealLog||{})for(const x of c.mealLog[d])if(x.synced!==false&&x.ts>=since)out.push({ts:x.ts,text:`${c.name} logged a meal that wasn't on the plan.`,id:c.id,tab:'meals',mealDay:d>=mondayOf(today())?weekIdx(d):null})}
+      for(const x of visFc(c))if(x.ts>=since)out.push({ts:x.ts,text:`${c.name} sent a form check on ${exById(x.exId).name}.`,id:c.id,tab:'progress'});}
     const m=c.messages.filter(x=>x.from==='client'&&x.synced!==false).slice(-1)[0];if(m&&pref(me,'nMsgs'))out.push({ts:m.ts,text:`${c.name} sent you a message.`,id:c.id,tab:'chat'});
     const r=c.readiness[today()];if(r&&r.synced!==false&&readyScore(r)<55&&pref(me,'nEnergy'))out.push({ts:new Date(today()+'T06:00').getTime(),text:`${c.name} has low energy today (${readyScore(r)}/100).`,id:c.id,tab:'workouts'});
   }
@@ -298,7 +305,7 @@ function notifSheet(){
 
 /* Settings: each person's own choices */
 const GEAR='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.800l-.1-.1a1.700 1.700 0 0 0-2.900 1.200V21a2 2 0 1 1-4 0v-.1a1.700 1.700 0 0 0-2.900-1.200l-.1.1a2 2 0 1 1-2.800-2.800l.1-.1a1.700 1.700 0 0 0-1.200-2.900H3a2 2 0 1 1 0-4h.1a1.700 1.700 0 0 0 1.200-2.900l-.1-.1a2 2 0 1 1 2.800-2.800l.1.1a1.700 1.700 0 0 0 2.900-1.200V3a2 2 0 1 1 4 0v.1a1.700 1.700 0 0 0 2.900 1.200l.1-.1a2 2 0 1 1 2.800 2.800l-.1.1a1.700 1.700 0 0 0 1.200 2.900h.1a2 2 0 1 1 0 4h-.1a1.700 1.700 0 0 0-1.500 1z"/></svg>'.replace(/(\d\.\d)00/g,'$1');
-const PREFS={ciDay:4,ciRemind:true,autoTimer:true,extraRest:true,vibrate:true,energyAsk:true,nRoutine:true,nMeals:true,nMsgs:true,missAfter:3,defaultRest:90,showSummary:true,nWorkouts:true,nNotes:true,nEnergy:true,nJoins:true};
+const PREFS={ciDay:4,ciRemind:true,autoTimer:true,extraRest:true,vibrate:true,energyAsk:true,nRoutine:true,nMsgs:true,missAfter:3,defaultRest:90,showSummary:true,nWorkouts:true,nNotes:true,nEnergy:true,nJoins:true};
 // reads one setting for a person, or the default above if they never changed it
 function pref(o,k){const v=o&&o.prefs?o.prefs[k]:undefined;return v===undefined?PREFS[k]:v}
 // the Settings page. tog = on/off switch, sel = dropdown, link = row that opens something
@@ -316,7 +323,7 @@ function settingsView(){
     +group('App',link('install-open','Add to home screen',isInstalled()?'Installed':''))
     +group('Clients',sel('missAfter','Flag a client in red after','Days without a workout, once they have also missed a planned one.',[[2,'2 days'],[3,'3 days'],[5,'5 days'],[7,'7 days']])+tog('showSummary','Weekly summary on Clients page','')+sel('defaultRest','Default rest for new exercises','You can still change it on each exercise.',[[60,'1:00'],[90,'1:30'],[120,'2:00'],[180,'3:00']]))
     +group('Check-ins',sel('ciDay','Check-in day','Clients see a reminder from this day until they send it.',[[4,'Friday'],[5,'Saturday'],[6,'Sunday'],[0,'Monday']]))
-    +group('Notifications',tog('nWorkouts','Finished workouts','')+tog('nNotes','Check-ins, notes and swaps','Weekly check-ins, form checks, workout notes, swaps and off-plan meals.')+tog('nMsgs','New messages','')+tog('nEnergy','Low energy days','')+tog('nJoins','Accepted invites',''))
+    +group('Notifications',tog('nWorkouts','Finished workouts','')+tog('nNotes','Check-ins, notes and swaps','Weekly check-ins, form checks, workout notes and swaps.')+tog('nMsgs','New messages','')+tog('nEnergy','Low energy days','')+tog('nJoins','Accepted invites',''))
     +group('Your data',link('export-data','Download a backup','')+(past?link('show-past','Past clients',String(past),'clients'):''));
   const r=o.reminder||{on:false,time:'07:00'};
   const pic=`<label class="optrow optlink" for="my-pic"><span class="pic-row">${avatarOf(o)}<b>Profile picture</b></span><span class="optval">${o.avatar?'Change':'Add'} <i aria-hidden="true">›</i></span><input type="file" id="my-pic" accept="image/*" data-mypic hidden></label>`+(o.avatar?`<button class="optrow optlink" data-act="pic-remove"><span><b>Remove picture</b></span></button>`:'');
@@ -325,7 +332,7 @@ function settingsView(){
     +group('App',link('install-open','Add to home screen',isInstalled()?'Installed':''))
     +group('Workouts',link('rem-open','Workout reminders',r.on?fmt12(r.time):'Off')+tog('autoTimer','Start rest timer automatically','Starts after you confirm a set.')+tog('extraRest','Longer rests on tired days','Adds 30 to 60 seconds when your energy check is low.')+tog('vibrate','Vibrate when rest ends','')+tog('energyAsk','Ask how I feel before training','The daily energy check.'))
     +group('Check-ins',tog('ciRemind','Remind me to check in','A small reminder on Today, once a week.'))
-    +group('Notifications',tog('nRoutine','Routine changes','')+tog('nMeals','Meal plan changes','')+tog('nMsgs','New messages',''))
+    +group('Notifications',tog('nRoutine','Routine changes','')+tog('nMsgs','New messages',''))
     +group('Your coach',link('nav',`Message ${esc(first(coach(o.coachId).name))}`,'','chat'))
     +group('Your data',link('export-data','Download my data',''));
 }

@@ -33,11 +33,8 @@ function reportData(c,weeksBack){
   lifts.sort((x,y)=>y.pct-x.pct);
   const ws=visW(c).filter(w=>w.date>=start);
   const pts=inRange.reduce((n,l)=>n+(l.prs?l.prs.length:0),0);
-  // meals: how many planned meals got ticked off
-  let mealsPlanned=0,mealsTicked=0;
-  if(c.meals)for(let d=c.meals.since&&c.meals.since>start?c.meals.since:start;d<=T;d=addDays(d,1)){const md=c.meals.days[weekIdx(d)];if(!md)continue;const tk=Object.values(c.mealTicks[d]||{}).filter(x=>x.synced!==false).length;if(d<T||tk){mealsPlanned+=md.meals.length;mealsTicked+=tk}}
   const allRpe=inRange.map(l=>l.rpe).filter(Boolean),allReady=weeks.flatMap(w=>w.ready);
-  return{start,weeks,planned,done,missedBy,lifts,ws,inRange,prCount:pts,mealsPlanned,mealsTicked,
+  return{start,weeks,planned,done,missedBy,lifts,ws,inRange,prCount:pts,
     attendance:planned?Math.round(done/planned*100):null,
     avgRpe:allRpe.length?Math.round(allRpe.reduce((a,b)=>a+b,0)/allRpe.length*10)/10:null,
     avgReady:allReady.length?Math.round(allReady.reduce((a,b)=>a+b,0)/allReady.length):null,
@@ -130,7 +127,6 @@ function highlights(c,R){
     const flat=R.lifts.filter(l=>l.pct===0);if(flat.length)out.push(['flat',`No change yet on ${flat.slice(0,3).map(l=>`<b>${esc(l.name)}</b>`).join(', ')}${flat.length>3?` and ${flat.length-3} more`:''}.`]);}
   if(R.prCount)out.push(['up',`${R.prCount} personal best${R.prCount>1?'s':''} set.`]);
   if(R.bwChange!=null)out.push(['flat',`Body weight ${R.bwChange===0?'unchanged':R.bwChange<0?`down ${Math.abs(R.bwChange)} kg`:`up ${R.bwChange} kg`} (goal: ${esc(c.goal||'not set')}).`]);
-  if(R.mealsPlanned)out.push([R.mealsTicked/R.mealsPlanned>=.8?'up':'flat',`Ticked <b>${R.mealsTicked} of ${R.mealsPlanned}</b> planned meals (${Math.round(R.mealsTicked/R.mealsPlanned*100)}%).`]);
   if(R.avgReady!=null&&R.avgReady<60)out.push(['down',`Energy check has been low (average ${R.avgReady}/100). Ask ${esc(name)} about sleep and stress.`]);
   const st=streak(c);if(st>2)out.push(['up',`On a streak of ${st} workouts in a row.`]);
   return `<ul class="hl">${out.map(([k,t])=>`<li class="${k}"><span aria-hidden="true">${k.startsWith('up')?'▲':k.startsWith('down')?'▼':'●'}</span><p>${t}</p></li>`).join('')}</ul>`;

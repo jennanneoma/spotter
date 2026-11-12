@@ -55,7 +55,6 @@ function calDayPanel(c,d){
   else if(s.key==='rest'&&d<=today())msg='Nothing was planned, and no workout was logged.';
   const extra=[];
   const r=c.readiness[d];if(r&&r.synced!==false)extra.push(['Energy check',`${readyScore(r)}/100 · sleep ${r.sleep}/5, energy ${r.energy}/5, soreness ${r.sore}/5`]);
-  if(c.meals&&d<=today()&&(!c.meals.since||d>=c.meals.since)){const md=c.meals.days[weekIdx(d)],n=md?md.meals.length:0,t=Object.values(c.mealTicks[d]||{}).filter(x=>x.synced!==false).length;if(n)extra.push(['Meals',`${Math.min(t,n)} of ${n} planned meals eaten`])}
   const wg=visW(c).find(x=>x.date===d);if(wg)extra.push(['Body weight',`${kg(wg.kg)} kg`]);
   const ms=(c.measures||[]).find(x=>x.date===d&&x.synced!==false);if(ms)extra.push(['Measurements',MEAS.filter(([k])=>hasW(ms[k])).map(([k,l])=>`${l} ${kg(ms[k])} cm`).join(' · ')]);
   const ph=c.photos.filter(p=>p.date===d&&p.synced!==false);
