@@ -34,7 +34,7 @@ addEventListener('popstate',()=>{
 
 // What to call the page you'd go back to, e.g. "‹ Jennifer" or "‹ Reports"
 function pageName(p){
-  const names={clients:'Clients',invites:'Invites',reports:'Reports',templates:'Templates',exercises:'Exercises',settings:'Settings',today:'Today',progress:'Progress',chat:'Chat',exercise:'Workout'};
+  const names={clients:'Clients',invites:'Invites',reports:'Reports',templates:'Templates',exercises:'Exercises',settings:'Settings',today:'Today',calendar:'Calendar',progress:'Progress',chat:'Chat',exercise:'Workout'};
   if(p.view==='client'&&p.clientId){const c=client(p.clientId);if(c)return first(c.name)}
   if(p.view==='reports'&&p.repClient){const c=client(p.repClient);if(c)return first(c.name)}
   return names[p.view]||'Back';
@@ -72,6 +72,7 @@ function searchPages(){
   ];
   return[
     {t:'Today',k:'home workout train',to:'nav',v:'today'},
+    {t:'Calendar',k:'history past workouts done missed days month report',to:'nav',v:'calendar'},
     {t:'Weekly check-in',k:'checkin weight sleep stress',to:'nav',v:'progress',s:'Progress'},
     {t:'Form checks',k:'video film technique',to:'nav',v:'progress',s:'Progress'},
     {t:'Progress',k:'weight measurements photos lifts',to:'nav',v:'progress'},

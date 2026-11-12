@@ -69,6 +69,8 @@ function restBonus(c){const r=c.readiness[today()];if(!r||!pref(c,'extraRest'))r
 function closeSheets(){ui.crop=null;ui.demoSheet=false;if(ui.clientSheet)ui.confirm=null;ui.clientSheet=null;ui.searchSheet=false;ui.sq='';ui.preview=null;ui.finishing=null;ui.swapRow=null;ui.remSheet=false;ui.nameSheet=false;ui.themeSheet=false;ui.notifSheet=false;ui.installSheet=false;render()}
 function newClient(o){return{id:uid(),logs:[],weights:[],photos:[],messages:[],notes:[],plan:null,session:null,readiness:{},progressions:[],planHistory:[],swaps:{},swapFeed:[],measures:[],checkins:[],formChecks:[],dayEdits:{},reminder:{on:false,time:'07:00'},coachRead:0,notesSeen:0,status:'active',...o}}
 function shrinkImage(file,max,done,type='image/png'){const img=new Image();img.onload=()=>{const k=Math.min(1,max/Math.max(img.width,img.height)),cv=document.createElement('canvas');cv.width=Math.round(img.width*k);cv.height=Math.round(img.height*k);cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);URL.revokeObjectURL(img.src);done(cv.toDataURL(type,.82))};img.onerror=()=>toast("That file couldn't be read as an image. Try a JPG or PNG.");img.src=URL.createObjectURL(file)}
+// after tapping a day on the calendar, slide down to its details if they're below the screen
+function calReveal(){setTimeout(()=>{const p=$('.calpanel');if(p&&p.getBoundingClientRect&&p.getBoundingClientRect().top>innerHeight*.7)p.scrollIntoView({behavior:'smooth',block:'start'})},30)}
 let toastT;
 // the little message that pops up at the bottom for a few seconds
 function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,3400)}
@@ -114,7 +116,7 @@ function freshIds(days){days=clone(days);days.forEach(d=>{d.id=uid();delete d._e
 function nextMonday(){const t=today(),m=mondayOf(t);return m===t?t:addDays(m,7)}
 const ACT={
   'open-report'(el){ui.view='reports';ui.repClient=el.dataset.id;ui.repTab=el.dataset.tab||'overview';ui.cal=null;ui.strAll=false;scrollTo(0,0)},
-  nav(el){if(el.dataset.v==='reports')ui.repClient=null;ui.view=el.dataset.v;ui.chooser=null;ui.preview=null;ui.olEx=null;ui.confirm=null;scrollTo(0,0)},
+  nav(el){if(el.dataset.v==='reports')ui.repClient=null;if(el.dataset.v==='calendar')ui.cal=null;ui.view=el.dataset.v;ui.chooser=null;ui.preview=null;ui.olEx=null;ui.confirm=null;scrollTo(0,0)},
   'open-client'(el){ui.view='client';ui.clientId=el.dataset.id;ui.tab='workouts';ui.olEx=null;ui.confirm=null;scrollTo(0,0)},
   tab(el){ui.tab=el.dataset.v;ui.olEx=null},
   'show-past'(el){ui.view='clients';ui.showPast=true;scrollTo(0,0)},
@@ -253,8 +255,8 @@ const ACT={
   'lifts-all'(){ui.liftsAll=!ui.liftsAll},
   'rep-week'(el){ui.repTab='history';ui.cal={month:monthOf(el.dataset.v),day:null,week:el.dataset.v};scrollTo(0,0)},
   'cal-month'(el){ui.cal.month=shiftMonth(ui.cal.month,+el.dataset.v);ui.cal.day=null;ui.cal.week=null},
-  'cal-day'(el){ui.cal.day=el.dataset.v;ui.cal.week=null;ui.cal.month=monthOf(el.dataset.v)},
-  'cal-week'(el){ui.cal.week=ui.cal.week===el.dataset.v?null:el.dataset.v;ui.cal.day=null},
+  'cal-day'(el){ui.cal=ui.cal||{month:monthOf(el.dataset.v),week:null};ui.cal.day=el.dataset.v;ui.cal.week=null;ui.cal.month=monthOf(el.dataset.v);calReveal()},
+  'cal-week'(el){ui.cal.week=ui.cal.week===el.dataset.v?null:el.dataset.v;ui.cal.day=null;calReveal()},
   // library
   'lib-group'(el){ui.libGroup=el.dataset.v},
   'preview-ex'(el){ui.preview=el.dataset.id;renderSheet();return'skip'},

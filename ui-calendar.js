@@ -1,11 +1,13 @@
-/* ui-calendar.js: the month calendar in a client's report.
+/* ui-calendar.js: the month calendar. The coach sees it in a client's report, the client on their Calendar tab.
    Each day gets a mark (done, missed, coming up). Tap a day or a week to see more. */
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 const monthOf=d=>d.slice(0,7);
 function shiftMonth(m,n){const[y,mo]=m.split('-').map(Number),x=new Date(y,mo-1+n,1);return iso(x).slice(0,7)}
 // what happened on one day: done, missed, rest, today or coming up
+// clients also see workouts they logged offline that haven't synced yet
+const calLogs=c=>ui.user.role==='client'?c.logs:visLogs(c);
 function dayStatus(c,d){
-  const T=today(),logs=visLogs(c).filter(l=>l.date===d),inf=dayAt(c,d),train=inf.day&&!inf.day.rest;
+  const T=today(),logs=calLogs(c).filter(l=>l.date===d),inf=dayAt(c,d),train=inf.day&&!inf.day.rest;
   if(logs.length)return{key:'done',logs,inf};
   if(d<progStart(c))return{key:'before',logs,inf};
   if(train)return{key:d<T?'notlogged':d===T?'today':'planned',logs,inf};
@@ -40,7 +42,7 @@ function calWeekPanel(c,mon){
     ${w.days.length?`<ul class="calweekdays">${w.days.map(x=>`<li class="${x.state}"><button data-act="cal-day" data-v="${x.d}"><span class="mono">${WK[weekIdx(x.d)].toUpperCase()}</span><span>${esc(x.title)}</span><span class="cw-state">${st[x.state]}</span></button></li>`).join('')}</ul>`:'<p class="hint">No training days this week.</p>'}</section>`;
 }
 function calDayPanel(c,d){
-  const s=dayStatus(c,d),wn=weekName(c,d),who=esc(first(c.name)),day=s.inf.day;
+  const s=dayStatus(c,d),wn=weekName(c,d),me=ui.user.role==='client',who=esc(first(c.name)),day=s.inf.day;
   const planned=()=>day&&day.exercises.length?`<ul class="caldex">${day.exercises.map(r=>{const e=exById(r.exId),w=weightText(r,d,s.inf.plan);return `<li>${thumb(e)}<span><b>${esc(e.name)}</b><small>${repsText(r.sets,r.reps)}${w?` · ${w}`:''}</small></span></li>`}).join('')}</ul>`:'';
   let title=CAL_LABEL[s.key],msg='',body='';
   if(s.key==='done'){title=s.logs[0].dayName.split(' · ').pop();
@@ -48,13 +50,13 @@ function calDayPanel(c,d){
       return `<p class="hint">Finished at ${fmtClock(l.finishedAt)}${l.durationMin?` · ${l.durationMin} min`:''}${l.rpe?` · effort ${l.rpe}/10`:''}</p>
       <ul class="caldex">${l.entries.map(e=>`<li>${thumb(exById(e.exId))}<span><b>${esc(exById(e.exId).name)}${(l.prs||[]).includes(e.exId)?' <i class="auto">PB</i>':''}${swappedLabel(e)}</b><small>${setsText(e.sets)}</small></span></li>`).join('')}</ul>${logNotes(l)}
       ${skipped.length?`<p class="hint">Not done: ${skipped.map(r=>esc(exById(r.exId).name)).join(', ')}.</p>`:''}`}).join('')}
-  else if(s.key==='notlogged'){title=`Not logged: ${dayTitle(day)}`;msg=`${who} didn't log this workout. They may have skipped it or forgotten to log it.`;body=planned()}
+  else if(s.key==='notlogged'){title=`Not logged: ${dayTitle(day)}`;msg=me?"You didn't log this workout.":`${who} didn't log this workout. They may have skipped it or forgotten to log it.`;body=planned()}
   else if(s.key==='today'){title=dayTitle(day);msg='Planned for today. Not logged yet.';body=planned()}
   else if(s.key==='planned'){title=dayTitle(day);msg='Coming up.';body=planned()}
-  else if(s.key==='before')msg=`${who}'s program hadn't started yet.`;
+  else if(s.key==='before')msg=me?"Your program hadn't started yet.":`${who}'s program hadn't started yet.`;
   else if(s.key==='rest'&&d<=today())msg='Nothing was planned, and no workout was logged.';
   const extra=[];
-  const r=c.readiness[d];if(r&&r.synced!==false)extra.push(['Energy check',`${readyScore(r)}/100 · sleep ${r.sleep}/5, energy ${r.energy}/5, soreness ${r.sore}/5`]);
+  const r=c.readiness[d];if(r&&(me||r.synced!==false))extra.push(['Energy check',`${readyScore(r)}/100 · sleep ${r.sleep}/5, energy ${r.energy}/5, soreness ${r.sore}/5`]);
   const wg=visW(c).find(x=>x.date===d);if(wg)extra.push(['Body weight',`${kg(wg.kg)} kg`]);
   const ms=(c.measures||[]).find(x=>x.date===d&&x.synced!==false);if(ms)extra.push(['Measurements',MEAS.filter(([k])=>hasW(ms[k])).map(([k,l])=>`${l} ${kg(ms[k])} cm`).join(' · ')]);
   const ph=c.photos.filter(p=>p.date===d&&p.synced!==false);

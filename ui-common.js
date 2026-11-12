@@ -13,6 +13,7 @@ const ICON={
   exercises:'<svg viewBox="0 0 24 24"><path d="M3 9v6M6 6.5v11M18 6.5v11M21 9v6M6 12h12"/></svg>',
   templates:'<svg viewBox="0 0 24 24"><rect x="4" y="3.5" width="12" height="15" rx="1"/><path d="M8 21h10a2 2 0 0 0 2-2V7"/><path d="M7.5 8h5M7.5 11.5h5"/></svg>',
   today:'<svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>',
+  calendar:'<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="1.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M8.5 14.5l2 2 4-4"/></svg>',
   reports:'<svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
   progress:'<svg viewBox="0 0 24 24"><path d="M3.5 19.5h17"/><path d="M5 15l4.5-4.5 3.5 3 6-7"/><path d="M15 6.5h4v4"/></svg>',
   invites:'<svg viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="1.5"/><path d="M3.5 7l8.5 6 8.5-6"/></svg>',

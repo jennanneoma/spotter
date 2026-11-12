@@ -1,20 +1,22 @@
 /* ui-client.js: everything the client sees.
-   clientApp() picks the page (Today, Progress, Chat...), then the functions below draw it. */
+   clientApp() picks the page (Today, Calendar, Progress, Chat...), then the functions below draw it. */
 function clientApp(){
   const c=client(ui.user.id),co=coach(c.coachId);
   if(c.archived)return `<main class="screen"><div class="card hud empty"><p class="eyebrow">Program complete</p><h1>Nice work, ${esc(first(myName(c)))}</h1><p class="muted">${esc(co.name)} has closed your program. Your workouts and progress are saved, and they can reopen your account anytime.</p><p class="hint">${c.logs.length} workouts logged · best streak kept on file.</p></div></main>`;
   if(isInvited(c))return joinView(c);
-  const v=['today','exercise','progress','chat','settings'].includes(ui.view)?ui.view:'today';
+  const v=['today','exercise','calendar','progress','chat','settings'].includes(ui.view)?ui.view:'today';
   let body;
   if(v==='exercise')body=exerciseView(c);
   else if(v==='progress')body=clientProgress(c);
+  // the same month calendar the coach sees in reports: ticks for done days, tap a day to see the workout
+  else if(v==='calendar')body=`<header class="hd"><h1>Calendar</h1></header>${calendarView(c)}`;
   else if(v==='settings')body=settingsView();
   else if(v==='chat'){c.clientRead=Date.now();save();body=`<header class="hd"><p class="eyebrow">Your coach</p><h1>${esc(co.name)}</h1></header>${chatView(c,'client')}`}
   else body=todayView(c);
   const pend=pendingCount(c);
   const off=!S.online?`<div class="offline"><span class="blink">●</span><span><b>Offline.</b> ${pend?`${pend} change${pend>1?'s':''} saved on this phone. They sync when you reconnect.`:'Everything you log is saved on this phone and syncs later.'}</span></div>`:'';
   const hello=v==='today'?`<div class="hello"><span>Hi, <b>${esc(first(myName(c)))}</b></span></div>`:'';
-  return appBar(co)+`<main class="screen">${hello}${off}${body}</main>`+tabbar([['today','Today'],['progress','Progress'],['chat','Chat',v==='chat'?0:c.messages.filter(m=>m.from==='coach'&&m.ts>(c.clientRead||0)).length]],v==='exercise'?'today':v);
+  return appBar(co)+`<main class="screen">${hello}${off}${body}</main>`+tabbar([['today','Today'],['calendar','Calendar'],['progress','Progress'],['chat','Chat',v==='chat'?0:c.messages.filter(m=>m.from==='coach'&&m.ts>(c.clientRead||0)).length]],v==='exercise'?'today':v);
 }
 // the Today page: today's workout, the week strip, streaks and the energy check
 function todayView(c){

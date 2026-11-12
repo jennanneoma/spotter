@@ -13,7 +13,7 @@ This is a front-end prototype. It runs on sample data saved in your browser, and
 ## What's in it
 
 - **Coach:** clients, invites, routines with weekly weight increases, templates, reports and a calendar of what each client did. A single date can be changed on its own, or the change applied to that weekday from then on. Weekly check-ins and form-check videos to reply to
-- **Client:** today's workout, set logging with rest timer, energy check, a weekly check-in, form-check videos, progress photos, body weight and measurements, a profile picture, chat with the coach
+- **Client:** today's workout, set logging with rest timer, a calendar of their own (done, missed and coming-up days), energy check, a weekly check-in, form-check videos, progress photos, body weight and measurements, a profile picture, chat with the coach
 - **Search:** one search box for clients, exercises, messages and every setting
 - **Settings:** check-in day, reminders, notifications, themes and a data download
 - **Install:** can be added to a phone's home screen
