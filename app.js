@@ -449,8 +449,8 @@ if('serviceWorker' in navigator&&location.protocol==='https:'&&window.top===wind
    centre of the square, in screen pixels. Drag with one finger (or the mouse) to move it,
    pinch with two fingers, use the slider, or scroll the mouse wheel to zoom. */
 let cropMovedAt=0;const cropPts=new Map();
-// logos may zoom out until the whole logo fits; photos always fill the square
-const cropMin=c=>c.for==='avatar'?1:Math.min(c.w,c.h)/Math.max(c.w,c.h);
+// logos may zoom out until the whole logo fits inside the circle; photos always fill it
+const cropMin=c=>c.for==='avatar'?1:Math.min(c.w,c.h)/Math.hypot(c.w,c.h);
 function openCrop(file,target){shrinkImage(file,1600,src=>{const im=new Image();im.onload=()=>{ui.crop={for:target,src,w:im.width,h:im.height,zoom:1,x:0,y:0};if(target!=='avatar')ui.crop.zoom=cropMin(ui.crop);renderSheet()};im.src=src},target==='avatar'?'image/jpeg':'image/png')}
 function cropLayout(){
   const c=ui.crop,box=$('#cropbox'),img=$('#crop-img');if(!c||!box||!img)return;
