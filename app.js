@@ -200,14 +200,14 @@ const ACT={
   // the welcome for brand new people
   'wl-start'(){ui.welcome.step='path'},
   'wl-login'(){ui.welcome=null;try{localStorage.setItem('gymnazo-welcomed','1')}catch(e){}}, // prototype: opens the sample account
-  'wl-path'(el){const w=ui.welcome;w.path=el.dataset.v;w.step=w.path==='coached'?'code':'name';ui.focus=w.path==='coached'?'wl-code':'wl-name'},
-  'wl-nocode'(){const w=ui.welcome;w.path='solo';w.code='';w.step='name';ui.focus='wl-name';toast('No problem. You can add your coach later in Settings.')},
+  'wl-path'(el){const w=ui.welcome;w.path=el.dataset.v;w.step=w.path==='coached'?'code':'name'}, // no auto-focus: the keyboard waits until they tap the box
+  'wl-nocode'(){const w=ui.welcome;w.path='solo';w.code='';w.step='name';toast('No problem. You can add your coach later in Settings.')},
   'wl-theme'(el){ui.welcome.theme=el.dataset.v},
   'wl-back'(){const w=ui.welcome,o=WL_ORDER(w),i=o.indexOf(w.step);w.step=o[Math.max(0,i-1)]},
   'wl-next'(){const w=ui.welcome;
     if(w.step==='code'){const code=w.code.trim().replace(/.*\//,'').toUpperCase();if(!S.clients.some(x=>isInvited(x)&&x.inviteCode===code)){toast("That code doesn't match an invite. Check it with your coach.");return'skip'}w.code=code}
     if(w.step==='name'&&!w.name.trim())return'skip';
-    const o=WL_ORDER(w);w.step=o[o.indexOf(w.step)+1];if(w.step==='name')ui.focus='wl-name'},
+    const o=WL_ORDER(w);w.step=o[o.indexOf(w.step)+1]},
   'wl-finish'(){const w=ui.welcome,name=w.name.trim();
     if(w.path==='coach'){const co={id:uid(),name,business:'',logo:null,onboarded:false,notifRead:Date.now()};S.coaches.push(co);switchUser('coach',co.id)}
     else if(w.path==='coached'){const c=S.clients.find(x=>isInvited(x)&&x.inviteCode===w.code);c.invitedAs=c.name;c.name=name;c.selfName=name;c.status='active';c.joinedTs=Date.now();c.joinSeen=false;c.joinedAt=today();
@@ -254,7 +254,7 @@ const ACT={
   'plan-copy'(el){const o=client(el.dataset.id);ui.drafts[ui.clientId]={isNew:true,name:o.plan.name,startDate:nextMonday(),days:toWeek(freshIds(o.plan.days))};ui.chooser=null;toast(`Copied ${first(o.name)}'s plan. Adjust weights, then save.`)},
   "edit-plan"(){const c=client(ui.clientId),d={...clone(c.plan),isNew:false};d.days=toWeek(d.days);for(const day of d.days)for(const r of day.exercises)if(progOf(r).type==="weekly"&&hasW(r.weight)){r.weight=setWeight(r,0,today(),c.plan);r.since=mondayOf(today())}ui.drafts[c.id]=d;ui.openDay=null},
   "prog-type"(el){const r=findDay(el.dataset.day).exercises.find(x=>x.id===el.dataset.row);r.prog={...progOf(r),type:el.dataset.v};if(el.dataset.v==="weekly")r.since=draftIsNew()?undefined:sinceMon()},
-  discard(){delete ui.drafts[ui.clientId];ui.saveWhen=null},
+  discard(){delete ui.drafts[ui.clientId];ui.saveWhen=null;ui.saveFrom=null},
   'open-day'(el){ui.openDay=el.dataset.day===openDayId()?'':el.dataset.day},
   'add-day'(){const d=curDraft();d.days.push(newDay(`Day ${d.days.filter(x=>!x.rest).length+1}`));ui.openDay=d.days[d.days.length-1].id;ui.focus='dn-'+ui.openDay},
   'add-rest'(){const d=curDraft();d.days.push(newDay('',true));ui.openDay=d.days[d.days.length-1].id},
@@ -278,22 +278,23 @@ const ACT={
   'save-plan'(){const c=client(ui.clientId),d=curDraft();if(!d.startDate){toast('Pick a start date first.');return}
     // only ask "this week or next week?" once a routine is actually running
     const running=c.plan&&(!(c.plan.activeFrom>today())||(c.planHistory||[]).length);
-    if(running)return ACT['save-plan-when']({dataset:{v:ui.saveWhen||'this'}});
+    if(running)return ACT['save-plan-when']();
     const updating=!!c.plan,{isNew,...plan}=clone(d);plan.id=uid();plan.days.forEach(x=>{delete x._ex;delete x._name});plan.activeFrom=mondayOf(plan.startDate);c.plan=plan;
     notify(c,updating?`${first(coachOf(c).name)} changed your routine. It starts ${fmtDate(plan.activeFrom)}.`:`${first(coachOf(c).name)} set up your new routine: ${plan.name}. It starts ${fmtDate(plan.activeFrom)}.`);
     delete ui.drafts[c.id];ui.saveWhen=null;save();scrollTo(0,0);toast(`Routine saved. It starts ${fmtDate(plan.activeFrom)}.`)},
   'routine-when'(el){ui.saveWhen=el.dataset.v},
-  'save-plan-when'(el){const c=client(ui.clientId),d=curDraft(),mon=mondayOf(today()),from=el.dataset.v==='next'?addDays(mon,7):mon;
+  // a changed routine can start on any day from today on. Earlier days keep the old routine
+  'save-plan-when'(){const c=client(ui.clientId),d=curDraft(),T=today(),from=ui.saveFrom&&ui.saveFrom>=T?ui.saveFrom:T,later=from>T;
     c.planHistory=c.planHistory||[];
     const old=c.plan,oldFrom=old.activeFrom||mondayOf(old.startDate);
     if(oldFrom<from)c.planHistory.push({from:oldFrom,until:addDays(from,-1),plan:clone(old)});
     c.planHistory=c.planHistory.map(h=>h.until>=from?{...h,until:addDays(from,-1)}:h).filter(h=>h.from<=h.until);
     const{isNew,...plan}=clone(d);plan.id=uid();plan.days.forEach(x=>{delete x._ex;delete x._name});plan.startDate=old.startDate;plan.activeFrom=from;plan.days.forEach(x=>x.exercises.forEach(r=>{if(progOf(r).type==='weekly'&&!r.since)r.since=from}));c.plan=plan;
     const wn=weekName(c,from),cn=first(coachOf(c).name);
-    notify(c,el.dataset.v==='next'?`${cn} set your new routine. It starts ${fmtDate(from)}.`:`${cn} changed your routine for this week.`);
-    ui.saveWhen=null;delete ui.drafts[c.id];save();
-    scrollTo(0,0);toast(el.dataset.v==='next'?`Routine saved. It starts ${fmtDate(from)}${wn?` (${wn})`:''}.`:`Routine saved for this week${wn?` (${wn})`:''}.`)},
-  'plan-from-history'(el){const c=client(ui.clientId),h=c.planHistory[+el.dataset.i];ui.drafts[c.id]={isNew:false,name:h.plan.name,startDate:c.plan.startDate,days:freshIds(h.plan.days)};ui.openDay=null;scrollTo(0,0);toast(`Loaded “${h.plan.name}”. Change it, then save it for this week or next.`)},
+    notify(c,later?`${cn} set your new routine. It starts ${fmtDate(from)}.`:`${cn} changed your routine, starting today.`);
+    ui.saveWhen=null;ui.saveFrom=null;delete ui.drafts[c.id];save();
+    scrollTo(0,0);toast(later?`Routine saved. It starts ${fmtDate(from)}${wn?` (${wn})`:''}.`:'Routine saved. It starts today.')},
+  'plan-from-history'(el){const c=client(ui.clientId),h=c.planHistory[+el.dataset.i];ui.drafts[c.id]={isNew:false,name:h.plan.name,startDate:c.plan.startDate,days:freshIds(h.plan.days)};ui.openDay=null;scrollTo(0,0);toast(`Loaded “${h.plan.name}”. Change it, pick a start day, then save.`)},
   // one date only
   'strip-week'(el){const m0=mondayOf(today()),cur=ui.stripMon&&ui.stripMon>=m0?ui.stripMon:m0;ui.stripMon=addDays(cur,7*+el.dataset.v)},
   'day-edit'(el){const c=client(ui.clientId),d=el.dataset.v,inf=dayAt(c,d);if(!inf.day)return'skip';
@@ -456,6 +457,7 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('input',e=>{
   const t=e.target,ds=t.dataset;
+  if(ds.savefrom!==undefined){ui.saveFrom=t.value;return}
   if(ds.wl&&ui.welcome){ui.welcome[ds.wl]=t.value;const b=$('#wl-next');if(b)b.disabled=!t.value.trim();return}
   if(ds.cropzoom!==undefined&&ui.crop){cropZoomTo(+t.value);return}
   if(ds.gsearch!==undefined){ui.sq=t.value;$('#gs-results').innerHTML=appSearchResults(t.value);return}
