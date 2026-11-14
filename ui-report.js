@@ -134,6 +134,7 @@ function highlights(c,R){
 // one client's report: period chips, tabs (Overview, Strength, Body, Calendar), then the charts
 function reportView(c){
   const range=ui.repRange??4,R=reportData(c,range),tab=ui.repTab||'overview';
+  if(tab==='strength'&&ui.olEx)return overloadDetail(c,ui.olEx); // tapped one lift: its own page
   if(!visLogs(c).length)return `<div class="card hud empty"><h2>No workouts yet</h2><p class="muted">The report fills in after ${esc(first(c.name))} logs their first workout. It will show consistency, strength changes, body weight, effort and a full workout history.</p></div>`;
   const tile=(label,val,sub,cls='')=>`<div class="tile hud ${cls}"><small>${label}</small><b class="mono">${val}</b><i>${sub}</i></div>`;
   const tabs=[['overview','Overview'],['strength','Strength'],['body','Body'],['history','Calendar']];
@@ -153,7 +154,8 @@ function reportView(c){
   else if(tab==='strength'){const all=ui.strAll,shown=all?R.lifts:R.lifts.slice(0,6);body=`
     <section class="rsec"><h3>Strength by exercise</h3><p class="hint">Start of the period compared with the latest session.</p>${strengthBars(shown)}
     ${R.lifts.length>6?`<button class="morebtn" data-act="str-all">${all?'Show top 6 only ▴':`Show all ${R.lifts.length} exercises ▾`}</button>`:''}</section>
-    <section class="rsec"><h3>Total weight lifted</h3>${volumeChart(c,R)}</section>`}
+    <section class="rsec"><h3>Total weight lifted</h3>${volumeChart(c,R)}</section>
+    <section class="rsec"><h3>Each lift</h3>${overloadView(c,'coach')}</section>`}
   else if(tab==='body')body=`
     <section class="rsec"><h3>Body weight</h3>${R.ws.length?weightChart(R.ws,R.bwChange!=null?gcHead(`${R.bwChange>0?'+':R.bwChange<0?'−':''}${Math.abs(R.bwChange)} kg`,`in this period · now ${kg(R.ws[R.ws.length-1].kg)} kg`):''):'<p class="hint">No weigh-ins in this period.</p>'}</section>
     <section class="rsec"><h3>Body measurements</h3><p class="hint">Centimetres, from check-ins.</p>${measurementsView(c,'coach')}</section>

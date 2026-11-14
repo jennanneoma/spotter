@@ -42,8 +42,8 @@ const roundTo=(x,step=1.25)=>Math.round(x/step)*step;
    weekly : add `step` kg every `every` weeks, counting from `since` (the Monday it was set) or the plan start
    earned : add `step` kg once a workout has every set at the top of the rep range (e.g. all sets of 12 in "8-12")
    sets   : each set is `step` kg heavier than the one before (a minus number makes drop sets) */
-const PROG_TYPES=[['none','Same weight','No automatic change'],['weekly','Add every week','Goes up each week'],['sets','Add after every set','Heavier each set, in the same workout']];
-function progOf(r){const p=r.prog;if(!p)return{type:'none',step:2.5,every:1};if(typeof p==='number')return{type:'none',step:p||2.5,every:1};const o={type:'none',step:2.5,every:1,...p};if(o.type==='earned')o.type='none';return o}
+const PROG_TYPES=[['none','Same weight','No automatic change'],['earned','Add when reps are hit','Goes up after every set reaches the top reps'],['weekly','Add every week','Goes up each week, whatever happened'],['sets','Add after every set','Heavier each set, in the same workout']];
+function progOf(r){const p=r.prog;if(!p)return{type:'none',step:2.5,every:1};if(typeof p==='number')return{type:'none',step:p||2.5,every:1};return{type:'none',step:2.5,every:1,...p}}
 function weekNo(r,date,plan){const p=progOf(r),since=r.since||(plan&&plan.startDate)||date;return Math.max(0,Math.floor(daysBetween(since,date)/7/(p.every||1)))}
 // works out the weight for one set on a given date, following the progression rules above
 function setWeight(r,i,date,plan){
@@ -61,7 +61,7 @@ function weightText(r,date,plan){
 const signed=x=>(+x>=0?'+':'−')+kg(Math.abs(+x));
 function progTag(r){
   const p=progOf(r);if(!hasW(r.weight)||p.type==='none')return'';
-  return p.type==='weekly'?`${signed(p.step)} KG/${p.every>1?p.every+' WK':'WK'}`:p.type==='earned'?`${signed(p.step)} WHEN EARNED`:`${signed(p.step)} EVERY SET`;
+  return p.type==='weekly'?`${signed(p.step)} KG/${p.every>1?p.every+' WK':'WK'}`:p.type==='earned'?`${signed(p.step)} KG WHEN REPS HIT`:`${signed(p.step)} EVERY SET`;
 }
 function progSentence(r,plan,who='coach'){
   const p=progOf(r),T=today();if(!hasW(r.weight))return'';
@@ -83,9 +83,14 @@ const EX=[
 ['Triceps Pushdown','Triceps','pushdown'],['Rope Pushdown','Triceps','pushdown'],['Overhead Triceps Extension','Triceps','ohext'],['Skull Crusher','Triceps','skull'],['Close-Grip Bench Press','Triceps','cgbench'],['Bench Dip','Triceps','bdip'],['Triceps Kickback','Triceps','kick'],['Diamond Push-Up','Triceps','dpushup'],
 ['Back Squat','Legs','squat'],['Front Squat','Legs','fsquat'],['Goblet Squat','Legs','gsquat'],['Hack Squat','Legs','squat','none'],['Box Squat','Legs','boxsquat'],['Leg Press','Legs','legpress'],['Bulgarian Split Squat','Legs','bss'],['Walking Lunge','Legs','lunge'],['Reverse Lunge','Legs','lunge'],['Step-Up','Legs','stepup'],['Leg Extension','Legs','legext'],['Lying Leg Curl','Legs','legcurl'],['Seated Leg Curl','Legs','sleg'],['Romanian Deadlift','Legs','rdl'],['Conventional Deadlift','Legs','deadlift'],['Sumo Deadlift','Legs','sumo'],['Trap Bar Deadlift','Legs','deadlift','db'],['Good Morning','Legs','gm'],['Hip Thrust','Legs','hipthrust'],['Glute Bridge','Legs','bridge'],['Cable Kickback','Legs','gkick'],['Hip Abduction Machine','Legs','abduct'],['Standing Calf Raise','Legs','calf'],['Seated Calf Raise','Legs','scalf'],
 ['Plank','Core','plank'],['Side Plank','Core','sideplank'],['Crunch','Core','crunch'],['Bicycle Crunch','Core','bicycle'],['Hanging Leg Raise','Core','hlr'],['Lying Leg Raise','Core','llr'],['Cable Crunch','Core','ccrunch'],['Ab Wheel Rollout','Core','abwheel'],['Russian Twist','Core','rtwist'],['Dead Bug','Core','deadbug'],['Mountain Climber','Core','climber'],['Pallof Press','Core','pallof'],
-['Kettlebell Swing','Conditioning','swing'],['Burpee','Conditioning','burpee'],['Jump Squat','Conditioning','jumpsq'],['Box Jump','Conditioning','boxjump'],["Farmer's Carry",'Conditioning','carry'],['Battle Ropes','Conditioning','ropes'],['Rowing Machine','Conditioning','erg'],['Assault Bike','Conditioning','bike'],['Jump Rope','Conditioning','jumprope'],['Double Under','Conditioning','dunder'],['Jumping Jack','Conditioning','jack']
+['Kettlebell Swing','Conditioning','swing'],['Burpee','Conditioning','burpee'],['Jump Squat','Conditioning','jumpsq'],['Box Jump','Conditioning','boxjump'],["Farmer's Carry",'Conditioning','carry'],['Battle Ropes','Conditioning','ropes'],['Rowing Machine','Conditioning','erg'],['Assault Bike','Conditioning','bike'],['Jump Rope','Conditioning','jumprope'],['Double Under','Conditioning','dunder'],['Jumping Jack','Conditioning','jack'],
+['Run','Conditioning',''],['Treadmill Run','Conditioning',''],['Stationary Bike','Conditioning','bike'],['Stair Climber','Conditioning',''],['Incline Walk','Conditioning','']
 ];
-const isBarbell=e=>(e.load||(SpotterAnim.PAT[e.pattern]||{}).load)==='bb';
+/* Some exercises are counted in time, not reps: holds and skipping in seconds, cardio in minutes. */
+const UNITS={sec:['Plank','Side Plank',"Farmer's Carry",'Battle Ropes','Jump Rope'],min:['Rowing Machine','Assault Bike','Run','Treadmill Run','Stationary Bike','Stair Climber','Incline Walk']};
+const unitFor=name=>UNITS.sec.includes(name)?'sec':UNITS.min.includes(name)?'min':'reps';
+const UNIT_LABEL={reps:'Reps',sec:'Secs',min:'Mins'};
+const isBarbell=e=>(e.load||(GymnazoAnim.PAT[e.pattern]||{}).load)==='bb';
 function plates(total,bar=20){
   if(!hasW(total)||+total<=bar)return null;
   let side=(+total-bar)/2;const out=[];
@@ -98,8 +103,8 @@ function plates(total,bar=20){
    It runs on first load, and again each new day so the dates always look recent. */
 function seed(){
   const T=today();
-  const S={v:14,online:true,seededOn:T,coaches:[{id:'co1',name:'Immanuel',business:'Immanuel Fitness',logo:null,onboarded:true,notifRead:Date.now()-3*864e5},{id:'co2',name:'Dev Patel',business:'Dev Patel Coaching',logo:null,onboarded:true,notifRead:Date.now()-3*864e5},{id:'co3',name:'New coach',business:'',logo:null,onboarded:false}],
-    exercises:EX.map(([name,group,pattern,load],i)=>({id:'e'+i,name,group,pattern,load:load||null})),templates:[],clients:[]};
+  const S={v:16,online:true,seededOn:T,coaches:[{id:'co1',name:'Immanuel',business:'Immanuel Fitness',logo:null,onboarded:true,notifRead:Date.now()-3*864e5},{id:'co2',name:'Dev Patel',business:'Dev Patel Coaching',logo:null,onboarded:true,notifRead:Date.now()-3*864e5},{id:'co3',name:'New coach',business:'',logo:null,onboarded:false}],
+    exercises:EX.map(([name,group,pattern,load],i)=>({id:'e'+i,name,group,pattern:pattern||'curl',load:load||null,unit:unitFor(name),...(pattern?{}:{noAnim:true})})),templates:[],clients:[]};
   const ex=n=>S.exercises.find(e=>e.name===n).id,exById2=id=>(S.exercises.find(e=>e.id===id)||{}).name;
   const row=(n,sets,reps,rest,weight='',prog=0,note='')=>({id:uid(),exId:ex(n),sets,reps,rest,weight,prog:{type:prog?"earned":"none",step:prog||2.5,every:1},note});
   const day=(name,rows)=>({id:uid(),name:cleanTitle(name),rest:false,exercises:rows});
@@ -112,7 +117,7 @@ function seed(){
     day('Day 2: Back and Biceps',[row('Pull-Up',4,'6-8',120,'',0,"Use the band if you can't get 6 clean reps."),row('Barbell Row',4,'8-10',90,55,2.5,'Pull to your belly button, not your chest.'),row('Seated Cable Row',3,'10-12',75,50,5),row('Face Pull',3,'15',60,17.5,0),row('Hammer Curl',3,'10-12',60,12,2)]),
     rest(),
     day('Day 3: Legs',[row('Back Squat',4,'5',150,85,2.5,'Belt on for the top two sets.'),row('Romanian Deadlift',3,'8',120,75,5),row('Bulgarian Split Squat',3,'10',90,14,2,'10 reps on each leg.'),row('Lying Leg Curl',3,'12',60,32.5,2.5),row('Standing Calf Raise',4,'12-15',45,60,5)]),
-    day('Day 4: Shoulders and Core',[row('Overhead Press',4,'6-8',120,45,2.5),row('Lateral Raise',4,'12-15',45,8,1,'Take 3 seconds on the way down.'),row('Rear Delt Fly',3,'15',45,6,1),row('Hanging Leg Raise',3,'10-12',60,''),row('Jump Rope',3,'60',45,'',0,'60 skips per set. Stay light on the balls of your feet.')]),
+    day('Day 4: Shoulders and Core',[row('Overhead Press',4,'6-8',120,45,2.5),row('Lateral Raise',4,'12-15',45,8,1,'Take 3 seconds on the way down.'),row('Rear Delt Fly',3,'15',45,6,1),row('Hanging Leg Raise',3,'10-12',60,''),row('Jump Rope',3,'60',45,'',0,'Stay light on the balls of your feet.')]),
     rest(),rest()]};
   { // Weeks 1-2 used a lighter starter routine; it stays on record as a past routine
     const starter=clone(sam.plan);starter.id=uid();starter.name='Starter: push, pull, legs';
@@ -179,8 +184,21 @@ function seed(){
   genWeights(alex,92.4,-0.4,4,9);
   alex.readiness[T]={sleep:2,energy:2,sore:4,synced:true};
   const tay=mk({id:'cl5',coachId:'co1',name:'Client 5',goal:'Get stronger for football season',status:'invited',inviteCode:'K7P2QX',invitedAt:addDays(T,-2)});
+  const kai=mk({id:'cl6',coachId:'co2',name:'New client',goal:'',status:'invited',inviteCode:'R4T9WM',invitedAt:addDays(T,-1)});
   sam.joinedAt=addDays(T,-31);pri.joinedAt=addDays(T,-37);jor.joinedAt=addDays(T,-3);alex.joinedAt=addDays(T,-22);sam.clientRead=Date.now();
-  S.clients=[sam,pri,jor,alex,tay];
+  // Immanuel's own training. Same account as the coach, in Individual mode: no coach, he writes his own routine.
+  const me=mk({id:'me1',coachId:null,solo:true,asCoachId:'co1',name:'Immanuel',goal:''});
+  me.plan={id:uid(),name:'Upper and lower',startDate:addDays(T,-27),days:[
+    day('Upper',[row('Barbell Bench Press',4,'6-8',120,80,2.5),row('Barbell Row',4,'8',90,70,2.5),row('Overhead Press',3,'8',90,50,2.5),row('Pull-Up',3,'8',90,''),row('Barbell Curl',3,'10',60,30,2.5)]),
+    day('Lower',[row('Back Squat',4,'5',150,110,2.5),row('Romanian Deadlift',3,'8',120,95,5),row('Walking Lunge',3,'12',75,16,2),row('Standing Calf Raise',3,'12',45,60,5),row('Plank',3,'45',45,'')]),
+    rest(),
+    day('Upper',[row('Incline Dumbbell Press',4,'8-10',90,30,2),row('Lat Pulldown',4,'10',75,65,5),row('Lateral Raise',3,'12-15',45,10,1),row('Seated Cable Row',3,'10',75,60,5),row('Triceps Pushdown',3,'12',60,25,2.5)]),
+    day('Lower',[row('Front Squat',4,'6',120,80,2.5),row('Leg Press',3,'12',90,160,10),row('Lying Leg Curl',3,'12',60,40,2.5),row('Hanging Leg Raise',3,'10',60,'')]),
+    rest(),rest()]};
+  genLogs(me,me.plan.startDate,addDays(T,-1),d=>daysBetween(me.plan.startDate,d)===11,21,{});
+  genWeights(me,82.6,-0.1,5,7);
+  me.joinedAt=addDays(T,-30);S.coaches[0].selfId='me1';
+  S.clients=[sam,pri,jor,alex,tay,kai,me];
   S.templates=[{id:uid(),coachId:'co1',name:'Upper, legs, full body',days:clone(pri.plan.days)}];
   return S;
 
@@ -225,6 +243,13 @@ function seed(){
 let S=null;
 const client=id=>S.clients.find(c=>c.id===id);
 const coach=id=>S.coaches.find(c=>c.id===id);
+/* Individual mode: someone training on their own has no coach (coachId is empty).
+   coachOf() then hands back a stand-in, so the rest of the code never trips over a missing coach. */
+const isSolo=c=>!!c&&!c.coachId;
+const SOLO_COACH={id:null,name:'Gymnazo',business:'Gymnazo',logo:null,solo:true,prefs:{}};
+const coachOf=c=>coach(c.coachId)||SOLO_COACH;
+// 'reps', 'sec' or 'min' for an exercise
+const unitOf=exId=>exById(exId).unit||'reps';
 const exById=id=>S.exercises.find(e=>e.id===id)||{name:'Unknown exercise',group:'',pattern:'curl'};
 const visLogs=c=>c.logs.filter(l=>l.synced!==false);
 const visW=c=>c.weights.filter(w=>w.synced!==false).sort((a,b)=>a.date<b.date?-1:1);
@@ -265,7 +290,7 @@ const readyScore=r=>r?Math.round((r.sleep+r.energy+(6-r.sore))/15*100):null;
 const readyCls=s=>s==null?'':s>=75?'ok':s>=55?'warn':'bad';
 // every time a client did one exercise, oldest first, with the heaviest set and total reps
 function exHistory(c,exId,vis=true){
-  return(vis?visLogs(c):c.logs).filter(l=>l.entries.some(e=>e.exId===exId)).sort((a,b)=>a.finishedAt-b.finishedAt).map(l=>{
+  const out=(vis?visLogs(c):c.logs).filter(l=>l.entries.some(e=>e.exId===exId)).sort((a,b)=>a.finishedAt-b.finishedAt).map(l=>{
     const e=l.entries.find(x=>x.exId===exId),ws=e.sets.filter(s=>hasW(s.w));
     const top=ws.length?Math.max(...ws.map(s=>+s.w)):null;
     const e1rm=ws.length?Math.round(Math.max(...ws.map(s=>+s.w*(1+(+s.r||0)/30)))*10)/10:null;
@@ -273,24 +298,26 @@ function exHistory(c,exId,vis=true){
     const reps=e.sets.reduce((n,s)=>n+(+s.r||0),0);
     return{date:l.date,top,e1rm,vol,reps,sets:e.sets,score:e1rm??reps};
   });
+  out.unit=unitOf(exId); // so labels can say "sec" or "min" instead of "reps"
+  return out;
 }
 /* Compares the latest session with the one before, in plain terms:
    heaviest set first (weighted lifts), then total reps (or reps alone for bodyweight moves). */
 function overload(h){
   if(h.length<2)return{key:'new',label:'First session'};
-  const a=h[h.length-2],b=h[h.length-1],weighted=b.top!=null&&a.top!=null;
+  const a=h[h.length-2],b=h[h.length-1],weighted=b.top!=null&&a.top!=null,u=h.unit||'reps';
   const best=weighted?Math.max(...h.slice(0,-1).map(x=>x.top??0)):Math.max(...h.slice(0,-1).map(x=>x.reps));
   if(weighted&&b.top>a.top)return{key:b.top>best?'pr':'up',label:b.top>best?`Personal best · ${kg(b.top)} kg`:`Up ${kg(b.top-a.top)} kg`};
   if(weighted&&b.top<a.top)return{key:'down',label:`Lighter by ${kg(a.top-b.top)} kg`};
-  if(b.reps>a.reps)return{key:!weighted&&b.reps>best?'pr':'up',label:!weighted&&b.reps>best?`Personal best · ${b.reps} reps`:`+${b.reps-a.reps} reps`};
-  if(b.reps<a.reps)return{key:'down',label:`${a.reps-b.reps} fewer reps`};
+  if(b.reps>a.reps)return{key:!weighted&&b.reps>best?'pr':'up',label:!weighted&&b.reps>best?`Personal best · ${b.reps} ${u}`:`+${b.reps-a.reps} ${u}`};
+  if(b.reps<a.reps)return{key:'down',label:u==='reps'?`${a.reps-b.reps} fewer reps`:`${a.reps-b.reps} ${u} less`};
   return{key:'same',label:'Same as last time'};
 }
 function sinceStart(h){
   if(h.length<2)return'';
   const a=h[0],b=h[h.length-1];
   if(a.top!=null&&b.top!=null&&b.top!==a.top)return `${kg(a.top)} → ${kg(b.top)} kg since ${fmtShort(a.date)}`;
-  if(b.reps!==a.reps)return `${a.reps} → ${b.reps} reps since ${fmtShort(a.date)}`;
+  if(b.reps!==a.reps)return `${a.reps} → ${b.reps} ${h.unit||'reps'} since ${fmtShort(a.date)}`;
   return '';
 }
 function planExIds(c){const ids=[];if(c.plan)for(const d of c.plan.days)for(const r of d.exercises)if(!ids.includes(r.exId))ids.push(r.exId);return ids}
@@ -307,7 +334,7 @@ function stats(c){
   const started=c.plan&&c.plan.startDate<=T;
   const since=last?daysBetween(last,T):(started?daysBetween(c.plan.startDate,T):0);
   let skipped=0;if(started)for(let d=last?addDays(last,1):c.plan.startDate;d<T;d=addDays(d,1)){const i=dayAt(c,d);if(i.day&&!i.day.rest)skipped++}
-  const missAfter=((coach(c.coachId).prefs||{}).missAfter)||3;
+  const missAfter=((coachOf(c).prefs||{}).missAfter)||3;
   const missed=!!started&&since>=missAfter&&skipped>0;
   const ws=visW(c),wt=ws.length?ws[ws.length-1].kg:null;let trend='',trendCls='';
   if(ws.length>1){const d=Math.round((wt-ws[Math.max(0,ws.length-5)].kg)*10)/10;trend=(d>0?'+':d<0?'−':'±')+Math.abs(d).toFixed(1);trendCls='up'}

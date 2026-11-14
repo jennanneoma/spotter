@@ -43,17 +43,18 @@ function calWeekPanel(c,mon){
 }
 function calDayPanel(c,d){
   const s=dayStatus(c,d),wn=weekName(c,d),me=ui.user.role==='client',who=esc(first(c.name)),day=s.inf.day;
-  const planned=()=>day&&day.exercises.length?`<ul class="caldex">${day.exercises.map(r=>{const e=exById(r.exId),w=weightText(r,d,s.inf.plan);return `<li>${thumb(e)}<span><b>${esc(e.name)}</b><small>${repsText(r.sets,r.reps)}${w?` · ${w}`:''}</small></span></li>`}).join('')}</ul>`:'';
+  const planned=()=>day&&day.exercises.length?`<ul class="caldex">${day.exercises.map(r=>{const e=exById(r.exId),w=weightText(r,d,s.inf.plan);return `<li>${thumb(e)}<span><b>${esc(e.name)}</b><small>${repsText(r.sets,r.reps,unitOf(r.exId))}${w?` · ${w}`:''}</small></span></li>`}).join('')}</ul>`:'';
   let title=CAL_LABEL[s.key],msg='',body='';
   if(s.key==='done'){title=s.logs[0].dayName.split(' · ').pop();
     body=s.logs.map(l=>{const skipped=day&&!day.rest?day.exercises.filter(r=>!l.entries.some(e=>e.exId===r.exId||e.swappedFrom===r.exId)):[];
       return `<p class="hint">Finished at ${fmtClock(l.finishedAt)}${l.durationMin?` · ${l.durationMin} min`:''}${l.rpe?` · effort ${l.rpe}/10`:''}</p>
-      <ul class="caldex">${l.entries.map(e=>`<li>${thumb(exById(e.exId))}<span><b>${esc(exById(e.exId).name)}${(l.prs||[]).includes(e.exId)?' <i class="auto">PB</i>':''}${swappedLabel(e)}</b><small>${setsText(e.sets)}</small></span></li>`).join('')}</ul>${logNotes(l)}
+      <ul class="caldex">${l.entries.map(e=>`<li>${thumb(exById(e.exId))}<span><b>${esc(exById(e.exId).name)}${(l.prs||[]).includes(e.exId)?' <i class="auto">PB</i>':''}${swappedLabel(e)}</b><small>${setsText(e.sets,unitOf(e.exId))}</small></span></li>`).join('')}</ul>${logNotes(l)}
       ${skipped.length?`<p class="hint">Not done: ${skipped.map(r=>esc(exById(r.exId).name)).join(', ')}.</p>`:''}`}).join('')}
   else if(s.key==='notlogged'){title=`Not logged: ${dayTitle(day)}`;msg=me?"You didn't log this workout.":`${who} didn't log this workout. They may have skipped it or forgotten to log it.`;body=planned()}
   else if(s.key==='today'){title=dayTitle(day);msg='Planned for today. Not logged yet.';body=planned()}
   else if(s.key==='planned'){title=dayTitle(day);msg='Coming up.';body=planned()}
   else if(s.key==='before')msg=me?"Your program hadn't started yet.":`${who}'s program hadn't started yet.`;
+  else if(s.key==='rest'&&day&&day.movedTo){title='Moved';msg=`This workout was moved to ${fmtDate(day.movedTo)}.`}
   else if(s.key==='rest'&&d<=today())msg='Nothing was planned, and no workout was logged.';
   const extra=[];
   const r=c.readiness[d];if(r&&(me||r.synced!==false))extra.push(['Energy check',`${readyScore(r)}/100 · sleep ${r.sleep}/5, energy ${r.energy}/5, soreness ${r.sore}/5`]);
@@ -61,8 +62,10 @@ function calDayPanel(c,d){
   const ms=(c.measures||[]).find(x=>x.date===d&&x.synced!==false);if(ms)extra.push(['Measurements',MEAS.filter(([k])=>hasW(ms[k])).map(([k,l])=>`${l} ${kg(ms[k])} cm`).join(' · ')]);
   const ph=c.photos.filter(p=>p.date===d&&p.synced!==false);
   const canEdit=d>=today()&&s.key!=='done'&&!!day&&ui.user.role==='coach';
+  // a client can pull a workout they missed in the last 6 days into today
+  const tInf=me?dayAt(c,today()):null,mk=me&&s.key==='notlogged'&&daysBetween(d,today())<=6&&canMakeUp(c)?`<div class="calchange"><button class="btn sm primary" data-act="makeup" data-v="${d}">${tInf.day&&!tInf.day.rest?`Do this today instead of ${esc(dayTitle(tInf.day))}`:'Do this workout today'}</button></div>`:'';
   const edit=canEdit?`<div class="calchange">${s.inf.edited?'<p class="hint">Changed for this day only.</p>':''}<button class="btn sm" data-act="cal-change" data-id="${c.id}" data-v="${d}">${s.inf.edited?'Edit this day':'Change this day'}</button></div>`:'';
-  return `<section class="card hud calpanel"><div><p class="eyebrow">${fmtDate(d)}${wn?` · ${wn}`:''}</p><h2>${esc(title)}</h2>${msg?`<p class="hint">${msg}</p>`:''}</div>${body}${edit}
+  return `<section class="card hud calpanel"><div><p class="eyebrow">${fmtDate(d)}${wn?` · ${wn}`:''}</p><h2>${esc(title)}</h2>${msg?`<p class="hint">${msg}</p>`:''}</div>${body}${mk}${edit}
     ${extra.length?`<dl class="calextra">${extra.map(([a,b])=>`<div><dt>${a}</dt><dd>${esc(b)}</dd></div>`).join('')}</dl>`:''}
     ${ph.length?photosHistory(ph):''}</section>`;
 }

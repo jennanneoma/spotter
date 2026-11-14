@@ -308,5 +308,5 @@ function loop(now){
   if(thumbs)last=now;
   requestAnimationFrame(loop);
 }
-window.SpotterAnim={PAT,prep,frameAt,start:()=>requestAnimationFrame(loop),reset:()=>{COLORS=null}};
+window.GymnazoAnim={PAT,prep,frameAt,start:()=>requestAnimationFrame(loop),reset:()=>{COLORS=null}};
 })();

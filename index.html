@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="icon" href="assets/spotter-logo-icon.svg">
-<title>Spotter Coaching</title>
+<link rel="icon" href="assets/gymnazo-logo-icon.svg">
+<title>Gymnazo</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#050806">
 <link rel="apple-touch-icon" href="assets/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Spotter">
+<meta name="apple-mobile-web-app-title" content="Gymnazo">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
@@ -1009,6 +1009,126 @@ button,a,label,input,select,textarea{touch-action:manipulation;-webkit-tap-highl
 .avatar,.brandlogo,.logodrop img,.logodrop>.mono{border-radius:50%!important}
 /* the crop pop-up for a profile picture shows the round shape it will be saved as */
 .cropsheet .cropbox::after{background:none;border-radius:50%;box-shadow:0 0 0 999px rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.4)}
+/* ---------- the two modes: the chooser screen and the switch in the account sheet ---------- */
+.modepick{min-height:100vh;justify-content:center;gap:18px;padding-block:40px}
+.mp-brand{display:flex;align-items:center;gap:10px;color:var(--accent);font-family:var(--display);font-weight:800;font-size:1.5rem;letter-spacing:.08em;text-transform:uppercase}
+.mp-brand span{color:var(--ink)}
+.mp-brand .smark{width:38px;height:38px}
+.modepick .hd{margin-bottom:6px}
+.modecard{display:flex;align-items:center;gap:16px;width:100%;text-align:left;padding:20px 18px;background:var(--surface);border:1px solid var(--line2);border-radius:var(--r);color:var(--ink);transition:border-color .15s,transform .15s}
+.modecard:hover{border-color:var(--accent)}
+.modecard:active{transform:scale(.99)}
+.mc-ic{width:46px;height:46px;flex:none;display:grid;place-items:center;border-radius:50%;background:var(--accent-soft);border:1px solid var(--accent-dim);color:var(--accent)}
+.mc-ic svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.mc-txt{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0}
+.mc-txt b{font-family:var(--display);font-size:1.35rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;line-height:1.1;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mc-txt small{color:var(--muted);font-size:.9rem;line-height:1.45}
+.modecard .chev{color:var(--accent);font-size:1.3rem}
+.modeseg .whenseg{display:grid;grid-template-columns:1fr 1fr;width:100%}
+.modeseg .whenseg button{padding:11px 8px}
+.demo-eyebrow{color:var(--muted);margin-top:4px}
+.brandlogo.appmark{background:none!important;color:var(--accent);box-shadow:none!important;border-radius:0!important}
+.brandlogo.appmark .smark{width:100%;height:100%}
+/* missed-workout offer on Today, and the "leave coach" question in settings */
+.card.makeup{flex-direction:row;align-items:center;justify-content:space-between;gap:14px;border-color:var(--accent-dim)}
+.card.makeup>div{display:flex;flex-direction:column;gap:6px;min-width:0}
+.card.makeup .btn{flex:none}
+.optrow.leave-confirm{flex-wrap:wrap}
+.optrow.leave-confirm .btnrow{flex:none}
+/* ---------- the welcome screens (first visit) ---------- */
+.welcome{min-height:100vh;position:relative;overflow:hidden;gap:20px;padding-block:22px 34px}
+.wl-glow{position:absolute;left:50%;top:-18%;width:130%;aspect-ratio:1;transform:translateX(-50%);border-radius:50%;background:radial-gradient(circle,rgba(var(--accent-rgb),.20),rgba(var(--accent2-rgb),.08) 45%,transparent 68%);pointer-events:none;animation:wlGlow 7s ease-in-out infinite alternate}
+.welcome[data-step="hello"] .wl-glow,.welcome[data-step="done"] .wl-glow{top:2%}
+.wl-top{display:flex;align-items:center;gap:16px;position:relative}
+.wl-top .back{align-self:center;flex:none}
+.wl-bar{flex:1;height:3px;background:var(--line2);border-radius:2px;overflow:hidden}
+.wl-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));box-shadow:0 0 10px var(--accent);transition:width .5s cubic-bezier(.2,.8,.2,1)}
+.wl-body{flex:1;display:flex;flex-direction:column;justify-content:center;gap:18px;position:relative}
+.wl-hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center}
+.wl-logo{color:var(--accent);filter:drop-shadow(0 0 22px rgba(var(--accent-rgb),.55))}
+.wl-logo .smark{width:112px;height:112px}
+.wl-logo path{stroke-dasharray:140;stroke-dashoffset:140;animation:wlDraw 1.1s .15s cubic-bezier(.6,0,.2,1) forwards}
+.wl-logo rect{transform-box:fill-box;transform-origin:center;transform:scaleY(0);animation:wlPlate .45s cubic-bezier(.3,1.6,.5,1) forwards}
+.wl-logo rect:nth-of-type(1){animation-delay:1s}.wl-logo rect:nth-of-type(2){animation-delay:1.12s}
+.wl-logo.done{animation:wlPop .6s cubic-bezier(.3,1.6,.5,1)}
+.wl-hero h1{font-size:3rem;letter-spacing:.08em}
+.wl-tag{color:var(--muted);font-family:var(--mono);font-size:.8rem;letter-spacing:.16em;text-transform:uppercase}
+.wl-foot{display:flex;flex-direction:column;align-items:stretch;gap:12px;margin-top:6px}
+.wl-foot .linkbtn{align-self:center}
+.wl-in{opacity:0;animation:wlIn .55s cubic-bezier(.2,.8,.2,1) forwards;animation-delay:calc(var(--i,0)*90ms + 80ms)}
+.welcome[data-step="hello"] .wl-in,.welcome[data-step="done"] .wl-in{animation-delay:calc(var(--i,0)*160ms + 700ms)}
+.welcome[data-step="done"] .wl-in{animation-delay:calc(var(--i,0)*120ms + 150ms)}
+.wl-input{font-size:1.35rem!important;padding:16px!important;text-align:center;font-weight:600;border-color:var(--accent-dim)!important}
+.wl-themes{display:grid;grid-template-columns:repeat(auto-fill,minmax(98px,1fr));gap:10px}
+.wl-theme{display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 6px;background:var(--surface);border:1px solid var(--line2);border-radius:var(--r);color:var(--ink);transition:transform .15s,border-color .15s}
+.wl-theme.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 0 22px -6px var(--accent);transform:translateY(-2px)}
+.wl-theme b{font-size:.84rem;font-weight:600}
+.wl-sw{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line2)}
+.wl-sw i{width:24px;height:24px;border-radius:50%}
+body{transition:background-color .4s}
+@keyframes wlIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes wlDraw{to{stroke-dashoffset:0}}
+@keyframes wlPlate{to{transform:scaleY(1)}}
+@keyframes wlPop{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
+@keyframes wlGlow{from{opacity:.7;transform:translateX(-50%) scale(1)}to{opacity:1;transform:translateX(-50%) scale(1.12)}}
+@media (prefers-reduced-motion:reduce){.wl-in,.wl-logo path,.wl-logo rect,.wl-logo.done,.wl-glow{animation:none;opacity:1;stroke-dashoffset:0;transform:none}.wl-glow{transform:translateX(-50%)}}
+/* ---------- the daily check: a pop-up stack of cards over a blurred Today ---------- */
+.feelover{position:fixed;inset:0;z-index:25;display:grid;place-items:center;padding:20px;background:rgba(2,4,3,.62);-webkit-backdrop-filter:blur(14px) saturate(1.2);backdrop-filter:blur(14px) saturate(1.2);overflow:hidden;perspective:1100px}
+.feelover.fresh{animation:feelFade .4s ease-out}
+/* two soft blobs of colour drifting behind the card */
+.feel-aura{position:absolute;width:78vmin;aspect-ratio:1;border-radius:50%;filter:blur(70px);opacity:.5;pointer-events:none}
+.feel-aura.a1{background:var(--accent);left:-18%;top:8%;animation:feelDrift 9s ease-in-out infinite alternate}
+.feel-aura.a2{background:var(--accent2);right:-22%;bottom:4%;opacity:.38;animation:feelDrift 11s ease-in-out infinite alternate-reverse}
+:root:not([data-skin]) .feel-aura.a2,:root[data-skin="lime"] .feel-aura.a2{background:#3fe0d0}
+.feelstack{position:relative;width:min(400px,100%);padding-bottom:22px;transform-style:preserve-3d}
+.feelghost{position:absolute;left:0;right:0;bottom:0;top:30px;border-radius:26px;border:1px solid rgba(var(--accent-rgb),.25);background:color-mix(in srgb,var(--surface) 82%,transparent)}
+.feelghost.g1{transform:translateY(11px) scale(.94) rotate(-2.2deg);opacity:.75}
+.feelghost.g2{transform:translateY(22px) scale(.88) rotate(2.6deg);opacity:.45}
+.feelcard{position:relative;display:flex;flex-direction:column;gap:16px;padding:58px 20px 24px;border-radius:26px;background:linear-gradient(165deg,rgba(var(--accent-rgb),.16),rgba(var(--accent2-rgb),.05) 45%,transparent 70%),color-mix(in srgb,var(--surface) 88%,transparent);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);box-shadow:0 30px 70px -24px rgba(var(--accent-rgb),.6),0 0 0 1px rgba(var(--accent-rgb),.18) inset;animation:feelIn .6s cubic-bezier(.25,1.5,.5,1) both}
+/* a ring of light that slowly travels round the card's edge */
+.feelcard::before{content:"";position:absolute;inset:-1.5px;border-radius:27px;padding:1.5px;background:conic-gradient(from var(--spin,0deg),transparent 0 55%,var(--accent) 72%,#fff 78%,var(--accent2) 86%,transparent 100%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:feelSpin 4.5s linear infinite;pointer-events:none}
+@property --spin{syntax:"<angle>";inherits:false;initial-value:0deg}
+/* the big floating icon that changes with each question */
+.feel-hero{position:absolute;left:50%;top:-38px;width:76px;height:76px;margin-left:-38px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.28),transparent 46%),linear-gradient(140deg,var(--accent),var(--accent2));box-shadow:0 12px 34px -6px rgba(var(--accent-rgb),.75),0 0 0 6px color-mix(in srgb,var(--bg) 70%,transparent);animation:feelBob 3.2s ease-in-out infinite}
+.feel-hero i{font-style:normal;font-size:2.1rem;line-height:1;animation:feelHero .7s cubic-bezier(.3,1.8,.5,1) both}
+.feel-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.feel-steps{display:flex;gap:6px;flex:1}
+.feel-steps i{height:4px;flex:1;max-width:46px;border-radius:4px;background:var(--line2);transition:background .3s}
+.feel-steps i.done{background:var(--accent-dim)}
+.feel-steps i.on{background:linear-gradient(90deg,var(--accent),var(--accent2));box-shadow:0 0 10px var(--accent)}
+.feelcard h3{font-size:1.7rem;line-height:1.1;text-align:center;text-wrap:balance}
+.feelcard .hint{text-align:center}
+.feelopts{display:flex;flex-wrap:wrap;gap:10px}
+.feelopt{flex:1 1 calc(50% - 5px);min-width:0;display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 8px 14px;border-radius:18px;border:1px solid rgba(var(--accent-rgb),.16);background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,0)),var(--sunk);color:var(--ink);opacity:0;animation:feelChip .5s cubic-bezier(.3,1.7,.5,1) forwards;animation-delay:calc(var(--i)*75ms + 220ms);transition:transform .14s,border-color .14s,box-shadow .14s,background .14s}
+.feelopts.n3 .feelopt{flex-basis:100%;flex-direction:row;justify-content:flex-start;gap:14px;padding:14px 18px}
+.feelopt span{font-size:2rem;line-height:1;transition:transform .2s cubic-bezier(.3,1.8,.5,1)}
+.feelopts.n3 .feelopt span{font-size:1.7rem}
+.feelopt b{font-weight:600;font-size:.95rem}
+.feelopt:hover{border-color:var(--accent);box-shadow:0 10px 26px -14px var(--accent);transform:translateY(-2px)}
+.feelopt:hover span{transform:scale(1.18) rotate(-6deg)}
+.feelopt:active,.feelopt.picked{transform:scale(1.06);background:linear-gradient(140deg,var(--accent),var(--accent2));border-color:transparent;color:var(--on-accent);box-shadow:0 0 0 4px rgba(var(--accent-rgb),.25),0 14px 34px -10px var(--accent)}
+.feelopt.picked span{transform:scale(1.4) rotate(8deg)}
+.feelcard.toss-l{animation:feelTossL .52s cubic-bezier(.55,0,.85,.35) forwards}
+.feelcard.toss-r{animation:feelTossR .52s cubic-bezier(.55,0,.85,.35) forwards}
+/* the emojis that fly out of the answer you tap */
+.feel-bit{position:fixed;z-index:40;pointer-events:none;transform:translate(-50%,-50%);animation:feelBit .85s cubic-bezier(.15,.8,.3,1) forwards}
+.feel-emoji{font-size:2rem;line-height:1}
+/* the reply on Today never looks like a warning, whatever the mood */
+.energy.feelmsg{border-color:var(--accent-dim)!important;background:linear-gradient(160deg,rgba(var(--accent-rgb),.10),transparent 60%),var(--surface)!important;border-radius:16px}
+.energy.feelmsg .eyebrow{color:var(--accent)!important}
+.feelmsg.pop{animation:feelIn .6s cubic-bezier(.25,1.5,.5,1)}
+@keyframes feelFade{from{opacity:0}}
+@keyframes feelIn{from{opacity:0;transform:translateY(34px) scale(.86) rotateX(18deg)}to{opacity:1;transform:none}}
+@keyframes feelChip{from{opacity:0;transform:translateY(12px) scale(.6)}to{opacity:1;transform:none}}
+@keyframes feelHero{from{transform:scale(0) rotate(-90deg)}to{transform:none}}
+@keyframes feelBob{50%{transform:translateY(-7px)}}
+@keyframes feelSpin{to{--spin:360deg}}
+@keyframes feelDrift{to{transform:translate(14%,-10%) scale(1.25)}}
+@keyframes feelTossL{25%{transform:translateY(-16px) rotate(-4deg) scale(1.04)}to{transform:translate(-150%,-110px) rotate(-38deg) scale(.7);opacity:0}}
+@keyframes feelTossR{25%{transform:translateY(-16px) rotate(4deg) scale(1.04)}to{transform:translate(150%,-110px) rotate(38deg) scale(.7);opacity:0}}
+@keyframes feelBit{from{opacity:1;transform:translate(-50%,-50%) scale(.4)}70%{opacity:1}to{opacity:0;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) rotate(var(--r)) scale(1.15)}}
+@media (prefers-reduced-motion:reduce){.feelcard,.feelcard::before,.feelopt,.feelmsg.pop,.feel-hero,.feel-hero i,.feel-aura,.feelover{animation:none!important;opacity:1}.feel-aura{opacity:.4}}
+.btn.logout{align-self:center;color:var(--bad);margin-top:4px}
 </style>
 
 <div id="app"></div>

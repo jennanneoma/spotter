@@ -9,7 +9,7 @@ const visCi=c=>(c.checkins||[]).filter(x=>x.synced!==false).sort((a,b)=>b.ts-a.t
 const visFc=c=>(c.formChecks||[]).filter(x=>x.synced!==false).sort((a,b)=>b.ts-a.ts);
 const toAnswer=c=>visCi(c).filter(x=>!x.reply).length+visFc(c).filter(x=>!x.reply).length;
 // The check-in is due from the coach's chosen day (Friday unless they change it), and only if not sent yet
-const ciDue=c=>!ciOf(c,mondayOf(today()))&&weekIdx(today())>=pref(coach(c.coachId),'ciDay');
+const ciDue=c=>!ciOf(c,mondayOf(today()))&&weekIdx(today())>=pref(coachOf(c),'ciDay');
 const SCALE5={sleep:['poor','great'],stress:['calm','very stressed']};
 const CAM='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6.5" width="13" height="11" rx="1.5"/><path d="M16 10.5l5-3v9l-5-3"/></svg>';
 function ciFacts(c,ci){
@@ -19,22 +19,22 @@ function ciFacts(c,ci){
 }
 // the client's check-in form, or a summary of it once it's sent
 function checkinCard(c){
-  const T=today(),ci=ciOf(c,mondayOf(T)),cn=esc(first(coach(c.coachId).name)),f=ui.ci;
-  if(ci&&!f)return `<section class="card hud ci"><div class="section-hd"><h3>Weekly check-in</h3><span class="pill ok">Sent ${ci.date===T?'today':fmtShort(ci.date)}</span></div>
+  const T=today(),ci=ciOf(c,mondayOf(T)),cn=esc(first(coachOf(c).name)),f=ui.ci,solo=isSolo(c);
+  if(ci&&!f)return `<section class="card hud ci"><div class="section-hd"><h3>${solo?'This week':'Weekly check-in'}</h3><span class="pill ok">${solo?'Saved':'Sent'} ${ci.date===T?'today':fmtShort(ci.date)}</span></div>
     ${ciFacts(c,ci)}${ci.note?`<p class="ci-note">“${esc(ci.note)}”</p>`:''}
-    ${ci.reply?`<div class="coachnote"><span class="eyebrow">${cn} replied</span><p>${esc(ci.reply.text)}</p></div>`:`<p class="hint">${ci.synced===false?`Saved on this phone. ${cn} gets it when you're back online.`:`${cn} will reply here.`}</p>`}
+    ${solo?'':ci.reply?`<div class="coachnote"><span class="eyebrow">${cn} replied</span><p>${esc(ci.reply.text)}</p></div>`:`<p class="hint">${ci.synced===false?`Saved on this phone. ${cn} gets it when you're back online.`:`${cn} will reply here.`}</p>`}
     <button class="linkbtn" data-act="ci-edit">Edit</button></section>`;
   const v=f||{},last=c.weights.slice().sort((a,b)=>a.date<b.date?-1:1).slice(-1)[0],todays=c.photos.filter(p=>p.date===T);
   const q=(k,lab)=>`<div class="rq"><span>${lab}</span><div class="seg5">${[1,2,3,4,5].map(n=>`<button type="button" class="${v[k]===n?'on':''}" data-act="ci-set" data-k="${k}" data-v="${n}" aria-pressed="${v[k]===n}" aria-label="${lab}: ${n} of 5">${n}</button>`).join('')}</div><small><span>1 = ${SCALE5[k][0]}</span><span>5 = ${SCALE5[k][1]}</span></small></div>`;
   const lastM=k=>{const x=(c.measures||[]).filter(m=>hasW(m[k])).slice(-1)[0];return x?kg(x[k]):'cm'};
-  return `<form class="card hud ci" data-form="checkin"><div><div class="section-hd"><h3>Weekly check-in</h3>${ciDue(c)?'<span class="pill acc">Due</span>':''}</div><p class="hint">About two minutes, once a week. ${cn} reads it and replies here.</p></div>
+  return `<form class="card hud ci" data-form="checkin"><div><div class="section-hd"><h3>${solo?'Log this week':'Weekly check-in'}</h3>${ciDue(c)?'<span class="pill acc">Due</span>':''}</div>${solo?'':`<p class="hint">About two minutes, once a week. ${cn} reads it and replies here.</p>`}</div>
     <label class="ci-kg">Weight (kg)<input id="ci-kg" data-ci="kg" inputmode="decimal" value="${esc(v.kg||'')}" placeholder="${last?kg(last.kg):'75.0'}"></label>
     ${q('sleep','Sleep this week')}${q('stress','Stress this week')}
-    <label>How did the week go?<textarea id="ci-note" data-ci="note" rows="3" placeholder="Wins, struggles, anything ${cn} should know">${esc(v.note||'')}</textarea></label>
+    <label>How did the week go?<textarea id="ci-note" data-ci="note" rows="3" placeholder="${solo?'Wins, struggles, anything worth remembering':`Wins, struggles, anything ${cn} should know`}">${esc(v.note||'')}</textarea></label>
     <div class="ci-more"><button type="button" class="linkbtn" data-act="toggle-meas" aria-expanded="${!!ui.showMeas}">${ui.showMeas?'− Measurements':'+ Measurements'}</button><button type="button" class="linkbtn" data-act="toggle-photos" aria-expanded="${!!ui.showPhotos}">${ui.showPhotos?'− Photos':`+ Photos${todays.length?` (${todays.length})`:''}`}</button></div>
     ${ui.showMeas?`<div class="measgrid">${MEAS.map(([k,l])=>`<label>${l} (cm)<input id="m-${k}" data-ci="m_${k}" inputmode="decimal" value="${esc(v['m_'+k]||'')}" placeholder="${lastM(k)}"></label>`).join('')}</div><p class="hint">Measure in the morning, at the same spot each time: waist at the belly button, hips at the widest point.</p>`:''}
-    ${ui.showPhotos?`<div class="slots">${['front','side','back'].map(a=>{const p=todays.find(x=>x.angle===a);return `<label class="slot" for="ph-${a}">${p?`<img src="${p.src}" alt="">`:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>'}<span>${p?'Replace ':'Add '}${a}</span><input type="file" accept="image/*" id="ph-${a}" data-photo="${a}"></label>`}).join('')}</div><p class="hint">Same spot, same light. Only you and ${cn} can see them.</p>`:''}
-    <div class="btnrow"><button class="btn primary">Send check-in</button>${ci?'<button type="button" class="btn ghost" data-act="ci-cancel">Cancel</button>':''}</div></form>`;
+    ${ui.showPhotos?`<div class="slots">${['front','side','back'].map(a=>{const p=todays.find(x=>x.angle===a);return `<label class="slot" for="ph-${a}">${p?`<img src="${p.src}" alt="">`:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>'}<span>${p?'Replace ':'Add '}${a}</span><input type="file" accept="image/*" id="ph-${a}" data-photo="${a}"></label>`}).join('')}</div><p class="hint">Same spot, same light. ${solo?'Only you can see them.':`Only you and ${cn} can see them.`}</p>`:''}
+    <div class="btnrow"><button class="btn primary">${solo?'Save':'Send check-in'}</button>${ci?'<button type="button" class="btn ghost" data-act="ci-cancel">Cancel</button>':''}</div></form>`;
 }
 /* the newest reply the client hasn't opened Progress for yet */
 function newReply(c){
@@ -42,9 +42,9 @@ function newReply(c){
   return rs.length?rs.sort((a,b)=>b.reply.ts-a.reply.ts)[0]:null;
 }
 function checkinNudge(c){
-  const cn=esc(first(coach(c.coachId).name)),r=newReply(c);
+  const cn=esc(first(coachOf(c).name)),r=newReply(c);
   if(r)return `<button class="invlink nudge" data-act="nav" data-v="progress"><span><b>${cn} replied</b> to your ${r.week?'check-in':`${esc(exById(r.exId).name)} form check`}</span><span class="chev" aria-hidden="true">›</span></button>`;
-  if(ciDue(c)&&pref(c,'ciRemind'))return `<button class="invlink nudge" data-act="nav" data-v="progress"><span><b>Weekly check-in</b> · about two minutes</span><span class="chev" aria-hidden="true">›</span></button>`;
+  if(ciDue(c)&&pref(c,'ciRemind'))return `<button class="invlink nudge" data-act="nav" data-v="progress"><span><b>${isSolo(c)?'Log your week':'Weekly check-in'}</b> · about two minutes</span><span class="chev" aria-hidden="true">›</span></button>`;
   return '';
 }
 const replyBlock=(form,x,who)=>x.reply?`<div class="coachnote"><span class="eyebrow">Your reply</span><p>${esc(x.reply.text)}</p></div>`
@@ -71,7 +71,7 @@ function coachCheckins(c){
 /* ---------- form-check videos ---------- */
 /* Videos are too big for the app's saved data, so they live in the browser's video store (IndexedDB) by id */
 const VDB={p:null,
-  open(){return this.p||(this.p=new Promise((ok,no)=>{const r=indexedDB.open('spotter-videos',1);r.onupgradeneeded=()=>r.result.createObjectStore('v');r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)}))},
+  open(){return this.p||(this.p=new Promise((ok,no)=>{const r=indexedDB.open('gymnazo-videos',1);r.onupgradeneeded=()=>r.result.createObjectStore('v');r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)}))},
   async put(id,blob){const db=await this.open();return new Promise((ok,no)=>{const tx=db.transaction('v','readwrite');tx.objectStore('v').put(blob,id);tx.oncomplete=()=>ok();tx.onerror=()=>no(tx.error)})},
   async get(id){const db=await this.open();return new Promise((ok,no)=>{const q=db.transaction('v').objectStore('v').get(id);q.onsuccess=()=>ok(q.result||null);q.onerror=()=>no(q.error)})}};
 const vURL={};
@@ -83,18 +83,19 @@ function hydrateVideos(){
 const fcVideo=(fc,ex)=>fc.sample?`<div class="fcvid sample">${anim(ex)}<small>Sample clip</small></div>`
   :`<div class="fcvid"><video data-fc="${fc.id}" controls playsinline preload="metadata" aria-label="Form check video: ${esc(ex.name)}"></video><small class="fcmiss">The video is on the phone it was filmed on</small></div>`;
 function fcCard(c,fc,role){
-  const ex=exById(fc.exId),who=esc(first(c.name)),cn=esc(first(coach(c.coachId).name));
+  const ex=exById(fc.exId),who=esc(first(c.name)),cn=esc(first(coachOf(c).name));
   return `<article class="fccard ${role==='coach'&&!fc.reply?'new':''}">${fcVideo(fc,ex)}<div class="fc-body"><p class="eyebrow">${fmtDate(fc.date)}${role==='coach'&&!fc.reply?' · New':''}</p><h3>${esc(ex.name)}</h3>${fc.note?`<p class="ci-note">“${esc(fc.note)}”</p>`:''}
     ${role==='coach'?replyBlock('fc-reply',fc,who):fc.reply?`<div class="coachnote"><span class="eyebrow">${cn} replied</span><p>${esc(fc.reply.text)}</p></div>`:`<p class="hint">Waiting for ${cn}.</p>`}</div></article>`;
 }
 /* Client, on the exercise screen: film a set, add a note, see the reply */
 function formCheckBox(c,r){
-  const T=today(),cn=esc(first(coach(c.coachId).name)),ex=exById(r.exId),mine=(c.formChecks||[]).filter(x=>x.exId===r.exId).sort((a,b)=>b.ts-a.ts);
+  if(isSolo(c))return''; // form checks go to a coach, so there's nothing to send without one
+  const T=today(),cn=esc(first(coachOf(c).name)),ex=exById(r.exId),mine=(c.formChecks||[]).filter(x=>x.exId===r.exId).sort((a,b)=>b.ts-a.ts);
   const now=mine.filter(x=>x.date===T),past=mine.find(x=>x.date!==T&&x.reply);
   return `${now.map(fc=>`<div class="fcmini">${fcVideo(fc,ex)}<div class="fc-body"><b>Form check sent to ${cn}</b><input class="note" id="fcn-${fc.id}" data-fcnote="${fc.id}" value="${esc(fc.note||'')}" placeholder="What should ${cn} look at? (optional)">${fc.reply?`<div class="coachnote"><span class="eyebrow">${cn} replied</span><p>${esc(fc.reply.text)}</p></div>`:''}</div></div>`).join('')}
     ${!now.length&&past?`<div class="coachnote"><span class="eyebrow">Your last form check · ${cn} said</span><p>${esc(past.reply.text)}</p></div>`:''}`;
 }
-const fcButton=(c,r)=>`<label class="btn swapbtn" for="fc-${r.id}">${CAM} ${(c.formChecks||[]).some(x=>x.exId===r.exId&&x.date===today())?'Send another':'Form check'}<input type="file" id="fc-${r.id}" accept="video/*" data-fcfile="${r.exId}" hidden></label>`;
+const fcButton=(c,r)=>isSolo(c)?'':`<label class="btn swapbtn" for="fc-${r.id}">${CAM} ${(c.formChecks||[]).some(x=>x.exId===r.exId&&x.date===today())?'Send another':'Form check'}<input type="file" id="fc-${r.id}" accept="video/*" data-fcfile="${r.exId}" hidden></label>`;
 
 /* ---------- add to home screen ---------- */
 let installEvt=null;
@@ -103,7 +104,7 @@ const isInstalled=()=>matchMedia('(display-mode: standalone)').matches||navigato
 // "add to home screen" steps for iPhone and Android
 function installSheet(){
   return `<div class="card hud sheetcard" role="dialog" aria-label="Add to home screen"><div class="section-hd"><h2>Add to home screen</h2><button class="icon-btn" data-act="close-sheet" aria-label="Close">✕</button></div>
-    ${isInstalled()?'<p class="muted">Spotter is already on this phone’s home screen.</p>':`<p class="muted">Once it's on your home screen, Spotter opens full screen from its own icon and keeps working without signal.</p>
-    ${installEvt?'<button class="btn primary big" data-act="install-go">Install Spotter</button>':''}
-    <ol class="steps"><li><b>iPhone</b><span>Open Spotter in Safari, tap Share, then Add to Home Screen.</span></li><li><b>Android</b><span>Open Spotter in Chrome, tap ⋮, then Install app.</span></li></ol>`}</div>`;
+    ${isInstalled()?'<p class="muted">Gymnazo is already on this phone’s home screen.</p>':`<p class="muted">Once it's on your home screen, Gymnazo opens full screen from its own icon and keeps working without signal.</p>
+    ${installEvt?'<button class="btn primary big" data-act="install-go">Install Gymnazo</button>':''}
+    <ol class="steps"><li><b>iPhone</b><span>Open Gymnazo in Safari, tap Share, then Add to Home Screen.</span></li><li><b>Android</b><span>Open Gymnazo in Chrome, tap ⋮, then Install app.</span></li></ol>`}</div>`;
 }

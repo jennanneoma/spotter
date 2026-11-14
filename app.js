@@ -4,36 +4,77 @@
    3. ACT: a list of every button action, by name. A button with data-act="open-client" runs ACT['open-client']
    4. listeners at the bottom that catch taps, typing and form sends, and call the right action
    The pattern is always the same: change the data, then render() again. */
-const KEY='spotter-demo-v14';
+const KEY='gymnazo-demo-v16';
 try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
-if(!S||S.v!==14||S.seededOn!==today())S=seed();
+// sample data is made once. It stays until "Reset sample data" is tapped, so changes aren't lost overnight
+if(!S||S.v!==16)S=seed();
+// first visit ever: start with the welcome. After that, open where this person left off
+let welcomed=false;try{welcomed=!!localStorage.getItem('gymnazo-welcomed')}catch(e){}
+if(!welcomed)ui.welcome={step:'hello',path:null,code:'',name:'',theme:'lime'};
+try{const u=JSON.parse(localStorage.getItem('gymnazo-user'));if(u&&(u.role==='coach'?coach(u.id):client(u.id))){ui.user=u;ui.view=u.role==='coach'?'clients':'today'}}catch(e){}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("This browser couldn't keep your changes. They last until you close the page.")}}
+
+/* ---------- the two modes ----------
+   One account, two sides. "solo" is Individual mode (your own training), "coach" is Coach mode (your clients).
+   A coach record points at the person's own training with selfId, and that training record points back with asCoachId.
+   The first time someone opens the other side, we make it for them. */
+const modeOf=()=>ui.user.role==='coach'?'coach':'solo';
+const canSwitchMode=()=>{if(ui.user.role==='coach')return true;const c=client(ui.user.id);return !!c&&!isInvited(c)&&!c.archived};
+function setMode(m){
+  if(m!==modeOf()){
+    if(m==='solo'){const co=coach(ui.user.id);let me=co.selfId&&client(co.selfId);
+      if(!me){me=newClient({coachId:null,solo:true,name:co.name==='New coach'?'You':co.name,asCoachId:co.id,joinedAt:today()});S.clients.push(me);co.selfId=me.id}
+      switchUser('client',me.id)}
+    else{const c=client(ui.user.id);let co=c.asCoachId&&coach(c.asCoachId);
+      if(!co){co={id:uid(),name:myName(c),business:'',logo:null,onboarded:false,notifRead:Date.now(),selfId:c.id};S.coaches.push(co);c.asCoachId=co.id}
+      switchUser('coach',co.id)}
+    save()}
+  try{localStorage.setItem('gymnazo-mode',m)}catch(e){}
+}
+// the first screen when the app opens: pick Individual or Coach
+function modeChooser(){
+  const who=ui.user.role==='coach'?coach(ui.user.id):client(ui.user.id),nm=who?first(ui.user.role==='coach'?who.name:myName(who)):'';
+  let last='';try{last=localStorage.getItem('gymnazo-mode')||''}catch(e){}
+  const card=(v,title,sub,icon)=>`<button class="modecard" data-act="mode-pick" data-v="${v}"><span class="mc-ic" aria-hidden="true">${icon}</span><span class="mc-txt"><b>${title}${last===v?' <span class="pill acc">Last used</span>':''}</b><small>${sub}</small></span><span class="chev" aria-hidden="true">›</span></button>`;
+  return `<main class="screen modepick"><div class="mp-brand">${APP_MARK}<span>Gymnazo</span></div>
+    <header class="hd"><p class="eyebrow">${nm&&nm!=='New'?`Hi, ${esc(nm)}`:'Welcome'}</p><h1>How are you training today?</h1></header>
+    ${card('solo','Individual','Build your own workouts and log your progress.',ICON.today)}
+    ${card('coach','Coach',"Manage your clients' workouts.",ICON.clients)}
+    <p class="hint">One account for both. Switch anytime from the round button at the top.</p></main>`;
+}
 
 /* ---------- demo switcher ----------
    Only for the prototype: lets you jump between the coach and each client to see both sides.
    It lives behind the "viewing as" button in the top bar (see demoSheet below). */
 function demoSheet(){
-  const me=`${ui.user.role}:${ui.user.id}`;
+  const cur=ui.user.role==='client'?client(ui.user.id):null;
+  // in Individual mode on your own account, the tick stays on your name
+  const me=cur&&cur.solo&&cur.asCoachId?`coach:${cur.asCoachId}`:`${ui.user.role}:${ui.user.id}`;
   const row=(v,name,sub)=>`<button class="demo-row ${v===me?'on':''}" data-act="demo-as" data-v="${v}" ${v===me?'aria-current="true"':''}>${v.startsWith('client')&&client(v.slice(7))?avatarOf(client(v.slice(7)),'dim'):`<span class="avatar">${initials(name)}</span>`}<span class="gs-txt"><b>${esc(name)}</b>${sub?`<small>${sub}</small>`:''}</span>${v===me?'<span class="demo-tick" aria-hidden="true">✓</span>':''}</button>`;
   const groups=S.coaches.map(co=>`<section class="gs-group"><h4>${esc(co.business||co.name)}</h4>
     ${row(`coach:${co.id}`,co.name,co.onboarded===false?'Coach · first login':'Coach')}
     ${S.clients.filter(c=>c.coachId===co.id).map(c=>row(`client:${c.id}`,c.name,c.archived?'Past client':isInvited(c)?'Invited':'')).join('')}</section>`).join('');
-  return `<div class="card hud sheetcard demosheet" role="dialog" aria-label="Viewing as"><div class="section-hd"><h2>Viewing as</h2><button class="icon-btn" data-act="close-sheet" aria-label="Close">✕</button></div>
+  const mode=canSwitchMode()?`<div class="modeseg"><div class="whenseg" role="group" aria-label="Mode">${[['solo','Individual'],['coach','Coach']].map(([v,l])=>`<button class="${modeOf()===v?'on':''}" data-act="mode-pick" data-v="${v}" aria-pressed="${modeOf()===v}">${l}</button>`).join('')}</div></div>`:'';
+  return `<div class="card hud sheetcard demosheet" role="dialog" aria-label="Mode and account"><div class="section-hd"><h2>${mode?'Mode':'Viewing as'}</h2><button class="icon-btn" data-act="close-sheet" aria-label="Close">✕</button></div>
+    ${mode}${mode?'<p class="eyebrow demo-eyebrow">Demo · view as</p>':''}
     <div class="demo-list">${groups}</div>
     <div class="demo-foot"><div class="optrow"><span><b>Client's phone</b></span><span class="whenseg" role="group" aria-label="Client phone connection"><button class="${S.online?'on':''}" data-act="online" data-v="1">Online</button><button class="${S.online?'':'on'}" data-act="online" data-v="0">Offline</button></span></div>
-    <button class="btn ghost sm" data-act="reset">Reset sample data</button></div></div>`;
+    <div class="btnrow"><button class="btn ghost sm" data-act="reset">Reset sample data</button><button class="btn ghost sm" data-act="welcome-replay">Replay welcome</button></div></div></div>`;
 }
 // the round button in the top bar that opens the switcher: shows the initials of who you're viewing as
 const demoBtn=()=>{const who=ui.user.role==='coach'?coach(ui.user.id):client(ui.user.id);return `<button class="barbtn whobtn" data-act="demo-open" aria-label="Viewing as ${esc(who?who.name:'')}. Switch" title="Viewing as"><span>${who&&who.avatar?`<img src="${who.avatar}" alt="">`:initials(who?(ui.user.role==='coach'?who.name:myName(who)):'?')}</span></button>`};
 // switch to another person (coach or client) and start them on their home page
 function switchUser(role,id){
-  ui.user={role,id};ui.hist=[];ui.view=role==='coach'?'clients':'today';
+  ui.feel=null;ui.feelShown=false;
+  ui.user={role,id};try{localStorage.setItem('gymnazo-user',JSON.stringify(ui.user))}catch(e){}ui.hist=[];ui.view=role==='coach'?'clients':'today';
   Object.assign(ui,{chooser:null,preview:null,olEx:null,finishing:null,confirm:null,swapRow:null,remSheet:false,themeSheet:false,notifSheet:false,installSheet:false,demoSheet:false,searchSheet:false,ci:null,dayDraft:null,ciOpen:null,showMeas:false,showPhotos:false,invite:null,ob:null,obStep:1,join:null,repClient:null});
   stopTimer();scrollTo(0,0);
 }
 // draws the whole app again from the data. Simple, and fast enough for an app this size
 function render(){
   applyTheme();
+  if(ui.welcome){$('#app').innerHTML=welcomeView();if(ui.focus){const el=document.getElementById(ui.focus);if(el)el.focus();ui.focus=null}renderSheet();return}
+  if(ui.modePick){$('#app').innerHTML=modeChooser();renderSheet();return}
   const html=ui.user.role==='coach'?coachApp():clientApp();
   // pages without the top bar (first login, invite) still get the switcher, as a small floating button
   $('#app').innerHTML=(html.includes('class="appbar"')?'':`<div class="demo-float">${demoBtn()}</div>`)+html;
@@ -47,6 +88,7 @@ function renderSheet(){
   const sh=$('#sheet');
   if(ui.crop){if(!$('#cropbox')){sh.innerHTML=cropSheet()}cropLayout();return}
   if(ui.demoSheet){sh.innerHTML=demoSheet();return}
+  if(ui.joinSheet&&ui.user.role==='client'){if(!$('#jc-code')){sh.innerHTML=joinCoachSheet();const q=$('#jc-code');if(q)q.focus()}return}
   if(ui.clientSheet&&ui.user.role==='coach'){sh.innerHTML=clientSheet(client(ui.clientSheet));return}
   if(ui.searchSheet){if(!$('#gs-q')){sh.innerHTML=searchSheet();const q=$('#gs-q');if(q)q.focus()}return}
   if(ui.themeSheet){sh.innerHTML=themeSheet();return}
@@ -66,11 +108,18 @@ function renderSheet(){
 }
 /* low energy today: longer breaks so every rep can still be finished */
 function restBonus(c){const r=c.readiness[today()];if(!r||!pref(c,'extraRest'))return 0;const sc=readyScore(r);return sc<55?60:sc<75?30:0}
-function closeSheets(){ui.crop=null;ui.demoSheet=false;if(ui.clientSheet)ui.confirm=null;ui.clientSheet=null;ui.searchSheet=false;ui.sq='';ui.preview=null;ui.finishing=null;ui.swapRow=null;ui.remSheet=false;ui.nameSheet=false;ui.themeSheet=false;ui.notifSheet=false;ui.installSheet=false;render()}
+function closeSheets(){ui.crop=null;ui.joinSheet=false;ui.demoSheet=false;if(ui.clientSheet)ui.confirm=null;ui.clientSheet=null;ui.searchSheet=false;ui.sq='';ui.preview=null;ui.finishing=null;ui.swapRow=null;ui.remSheet=false;ui.nameSheet=false;ui.themeSheet=false;ui.notifSheet=false;ui.installSheet=false;render()}
 function newClient(o){return{id:uid(),logs:[],weights:[],photos:[],messages:[],notes:[],plan:null,session:null,readiness:{},progressions:[],planHistory:[],swaps:{},swapFeed:[],measures:[],checkins:[],formChecks:[],dayEdits:{},reminder:{on:false,time:'07:00'},coachRead:0,notesSeen:0,status:'active',...o}}
 function shrinkImage(file,max,done,type='image/png'){const img=new Image();img.onload=()=>{const k=Math.min(1,max/Math.max(img.width,img.height)),cv=document.createElement('canvas');cv.width=Math.round(img.width*k);cv.height=Math.round(img.height*k);cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);URL.revokeObjectURL(img.src);done(cv.toDataURL(type,.82))};img.onerror=()=>toast("That file couldn't be read as an image. Try a JPG or PNG.");img.src=URL.createObjectURL(file)}
 // after tapping a day on the calendar, slide down to its details if they're below the screen
 function calReveal(){setTimeout(()=>{const p=$('.calpanel');if(p&&p.getBoundingClientRect&&p.getBoundingClientRect().top>innerHeight*.7)p.scrollIntoView({behavior:'smooth',block:'start'})},30)}
+// a little burst of the chosen emoji flying out from the tapped answer
+function feelBurst(el){
+  if(!el.getBoundingClientRect||!document.body.appendChild)return;const r=el.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2,e=el.dataset.e||'✨';
+  for(let i=0;i<12;i++){const s=document.createElement('span'),a=Math.PI*2*i/12+Math.random()*.5,d=70+Math.random()*90;s.className='feel-bit';s.textContent=i%3===2?'✨':e;
+    s.style.cssText=`left:${x}px;top:${y}px;--dx:${Math.cos(a)*d}px;--dy:${Math.sin(a)*d-40}px;--r:${(Math.random()-.5)*260}deg;font-size:${14+Math.random()*16}px`;
+    document.body.appendChild(s);setTimeout(()=>s.remove(),900)}
+}
 let toastT;
 // the little message that pops up at the bottom for a few seconds
 function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,3400)}
@@ -110,12 +159,21 @@ const draftPlan=()=>curDraft()||(client(ui.clientId)||{}).plan;
 const draftIsNew=()=>!!(curDraft()||{}).isNew;
 const sinceMon=()=>ui.dayDraft?mondayOf(ui.dayDraft.date):mondayOf(today());
 function move(a,i,j){if(j<0||j>=a.length)return;const[x]=a.splice(i,1);a.splice(j,0,x)}
-function notify(c,text,go='today'){c.notes.unshift({id:uid(),text,go,ts:Date.now()})}
+function notify(c,text,go='today'){if(isSolo(c))return; // nobody to tell: you made the change yourself
+  c.notes.unshift({id:uid(),text,go,ts:Date.now()})}
+const planRows=c=>c.plan?c.plan.days.flatMap(d=>d.exercises):[];
+/* ---------- making up a missed workout ----------
+   The simple rule: a missed workout can be done today instead. The missed day then counts as a rest day
+   (marked "moved"), so streaks and reports stay fair without any special maths. */
+// the latest planned workout from the past 6 days that wasn't logged
+function missedRecent(c){const T=today(),start=progStart(c);for(let i=1;i<=6;i++){const d=addDays(T,-i);if(d<start)break;const inf=dayAt(c,d);if(inf.day&&!inf.day.rest&&!c.logs.some(l=>l.date===d))return{d,day:inf.day}}return null}
+// only when today's workout isn't finished, started or already swapped in
+function canMakeUp(c){const T=today();return !c.logs.some(l=>l.date===T)&&!((c.dayEdits||{})[T]||{}).movedFrom&&!(c.session&&c.session.date===T&&Object.values(c.session.sets||{}).some(a=>a.some(x=>x.done)))}
 function newDay(name,rest=false){return{id:uid(),name:rest?'':name,rest,exercises:[]}}
 function freshIds(days){days=clone(days);days.forEach(d=>{d.id=uid();delete d._ex;delete d._name;d.exercises.forEach(r=>r.id=uid())});return days}
 function nextMonday(){const t=today(),m=mondayOf(t);return m===t?t:addDays(m,7)}
 const ACT={
-  'open-report'(el){ui.view='reports';ui.repClient=el.dataset.id;ui.repTab=el.dataset.tab||'overview';ui.cal=null;ui.strAll=false;scrollTo(0,0)},
+  'open-report'(el){ui.olEx=null;ui.view='reports';ui.repClient=el.dataset.id;ui.repTab=el.dataset.tab||'overview';ui.cal=null;ui.strAll=false;scrollTo(0,0)},
   nav(el){if(el.dataset.v==='reports')ui.repClient=null;if(el.dataset.v==='calendar')ui.cal=null;ui.view=el.dataset.v;ui.chooser=null;ui.preview=null;ui.olEx=null;ui.confirm=null;scrollTo(0,0)},
   'open-client'(el){ui.view='client';ui.clientId=el.dataset.id;ui.tab='workouts';ui.olEx=null;ui.confirm=null;scrollTo(0,0)},
   tab(el){ui.tab=el.dataset.v;ui.olEx=null},
@@ -139,10 +197,60 @@ const ACT={
   'archive-client'(el){const c=client(el.dataset.id);c.archived=true;c.archivedAt=today();ui.confirm=null;ui.clientSheet=null;ui.view='clients';ui.showPast=true;save();toast(`${c.name} moved to past clients. You can restore them anytime.`)},
   'restore-client'(el){const c=client(el.dataset.id);c.archived=false;delete c.archivedAt;save();toast(`${c.name} is active again.`)},
   'delete-client'(el){const c=client(el.dataset.id);S.clients=S.clients.filter(x=>x.id!==c.id);ui.confirm=null;ui.clientSheet=null;ui.view='clients';if(ui.user.id===c.id)ui.user={role:'coach',id:c.coachId};save();toast(`${c.name} and their history were deleted.`)},
-  'new-plan'(){ui.chooser=ui.clientId},
+  // the welcome for brand new people
+  'wl-start'(){ui.welcome.step='path'},
+  'wl-login'(){ui.welcome=null;try{localStorage.setItem('gymnazo-welcomed','1')}catch(e){}}, // prototype: opens the sample account
+  'wl-path'(el){const w=ui.welcome;w.path=el.dataset.v;w.step=w.path==='coached'?'code':'name';ui.focus=w.path==='coached'?'wl-code':'wl-name'},
+  'wl-nocode'(){const w=ui.welcome;w.path='solo';w.code='';w.step='name';ui.focus='wl-name';toast('No problem. You can add your coach later in Settings.')},
+  'wl-theme'(el){ui.welcome.theme=el.dataset.v},
+  'wl-back'(){const w=ui.welcome,o=WL_ORDER(w),i=o.indexOf(w.step);w.step=o[Math.max(0,i-1)]},
+  'wl-next'(){const w=ui.welcome;
+    if(w.step==='code'){const code=w.code.trim().replace(/.*\//,'').toUpperCase();if(!S.clients.some(x=>isInvited(x)&&x.inviteCode===code)){toast("That code doesn't match an invite. Check it with your coach.");return'skip'}w.code=code}
+    if(w.step==='name'&&!w.name.trim())return'skip';
+    const o=WL_ORDER(w);w.step=o[o.indexOf(w.step)+1];if(w.step==='name')ui.focus='wl-name'},
+  'wl-finish'(){const w=ui.welcome,name=w.name.trim();
+    if(w.path==='coach'){const co={id:uid(),name,business:'',logo:null,onboarded:false,notifRead:Date.now()};S.coaches.push(co);switchUser('coach',co.id)}
+    else if(w.path==='coached'){const c=S.clients.find(x=>isInvited(x)&&x.inviteCode===w.code);c.invitedAs=c.name;c.name=name;c.selfName=name;c.status='active';c.joinedTs=Date.now();c.joinSeen=false;c.joinedAt=today();
+      c.notes.unshift({id:uid(),text:`Welcome! You're now connected to ${coachOf(c).name}.`,ts:Date.now()});switchUser('client',c.id)}
+    else{const c=newClient({coachId:null,solo:true,name,joinedAt:today()});S.clients.push(c);switchUser('client',c.id)}
+    ui.welcome=null;ui.modePick=false;setTheme(w.theme);try{localStorage.setItem('gymnazo-welcomed','1');localStorage.setItem('gymnazo-mode',modeOf())}catch(e){}save();scrollTo(0,0)},
+  // prototype log out: back to the first screen. Real sign-out comes with the backend
+  logout(){closeSheets();ui.confirm=null;ui.modePick=false;ui.welcome={step:'hello',path:null,code:'',name:'',theme:themeOf()};try{localStorage.removeItem('gymnazo-welcomed');localStorage.removeItem('gymnazo-user')}catch(e){}scrollTo(0,0)},
+  'welcome-replay'(){ui.demoSheet=false;ui.welcome={step:'hello',path:null,code:'',name:'',theme:'lime'};scrollTo(0,0)},
+  // the daily check cards on Today
+  'feel-pick'(el){const c=client(ui.user.id),f=ui.feel||(ui.feel={step:0,a:{}}),q=FEEL_Q[f.step],o=q&&q.opts.find(x=>x[0]===el.dataset.v);if(!o)return'skip';
+    f.a[q.k]=o;f.step++;
+    if(f.step>=FEEL_Q.length){c.readiness[today()]={sleep:f.a.sleep[3],energy:f.a.mood[3],sore:f.a.sore[3],mood:f.a.mood[0],synced:S.online};ui.feel=null;ui.feelJust=true;save()}
+    // throw the answered card away, then draw what comes next
+    const card=$('#feelcard');if(card&&card.classList&&!matchMedia('(prefers-reduced-motion: reduce)').matches){if(el.classList)el.classList.add('picked');feelBurst(el);card.classList.add(Math.random()<.5?'toss-l':'toss-r');setTimeout(render,520);return'skip'}},
+  'feel-skip'(){ui.feelSkip=today();ui.feel=null},
+  // the two modes
+  'mode-pick'(el){setMode(el.dataset.v);ui.modePick=false;ui.demoSheet=false;scrollTo(0,0)},
+  'mode-open'(){ui.modePick=true;scrollTo(0,0)},
+  'makeup'(el){const c=client(ui.user.id),T=today(),d=el.dataset.v,inf=dayAt(c,d);if(!inf.day||inf.day.rest||d>=T||!canMakeUp(c))return'skip';
+    const cp=clone(inf.day);delete cp._ex;delete cp._name;delete cp.movedTo;cp.movedFrom=d;
+    c.dayEdits=c.dayEdits||{};c.dayEdits[T]=cp;c.dayEdits[d]={id:uid(),name:'',rest:true,exercises:[],movedTo:T};
+    c.session=null;ui.view='today';save();scrollTo(0,0);toast(`${WKL[weekIdx(d)]}'s workout is now today's.`)},
+  'makeup-undo'(){const c=client(ui.user.id),T=today(),e=(c.dayEdits||{})[T];if(!e||!e.movedFrom)return'skip';delete c.dayEdits[e.movedFrom];delete c.dayEdits[T];c.session=null;save();toast('Back to the usual plan.')},
+  // fix today's finished workout: put the sets back so they can be changed and saved again
+  'log-reopen'(){const c=client(ui.user.id),T=today(),i=c.logs.findIndex(l=>l.date===T);if(i<0)return'skip';const l=c.logs[i],inf=dayAt(c,T);if(!inf.day||inf.day.rest)return'skip';
+    // take back any automatic weight increase this workout earned, so it isn't counted twice
+    for(const u of l.ups||[]){for(const r of[...inf.day.exercises,...planRows(c)])if(r.id===u.rowId)r.weight=u.from;c.progressions=c.progressions.filter(x=>!(x.date===T&&x.exId===u.exId))}
+    c.session={date:T,dayId:inf.day.id,startedAt:Date.now()-(l.durationMin||1)*60000,sets:{},notes:{},prev:{rpe:l.rpe,note:l.note||''}};
+    for(const e of l.entries){c.session.sets[e.rowId]=e.sets.map(x=>({w:hasW(x.w)?kg(x.w):'',r:x.r,done:true}));if(e.note)c.session.notes[e.rowId]=e.note}
+    c.logs.splice(i,1);ui.finishing=null;save();scrollTo(0,0);toast('Change what you need, then finish again.')},
+  // one training profile: joining a coach hands them the routine, leaving hands it back
+  'join-open'(){ui.joinSheet=true;renderSheet();ui.focus=null;return'skip'},
+  'leave-ask'(){ui.confirm={kind:'leave'}},
+  'leave-coach'(){const c=client(ui.user.id),co=coachOf(c);c.coachId=null;c.solo=true;ui.confirm=null;ui.view='today';save();scrollTo(0,0);toast(`You've left ${co.business||co.name}. Your routine and history stay with you.`)},
+  // only show the "how do you want to start?" chooser when there's a real choice (templates, or a client to copy from)
+  'new-plan'(){const c=client(ui.clientId),solo=isSolo(c),tpls=S.templates.some(t=>t.coachId&&t.coachId===(solo?c.asCoachId:c.coachId)),others=!solo&&S.clients.some(x=>x.coachId===c.coachId&&x.id!==c.id&&x.plan);
+    if(!tpls&&!others)return ACT['plan-blank']();ui.chooser=ui.clientId},
+  // "Build my routine" on Today: straight to the Routine tab and into the builder
+  'build-routine'(){ui.view='routine';ui.clientId=ui.user.id;scrollTo(0,0);return ACT['new-plan']()},
   'close-chooser'(){ui.chooser=null},
-  'plan-blank'(){ui.drafts[ui.clientId]={isNew:true,name:'New routine',startDate:nextMonday(),days:WK.map((_,i)=>newDay('',![0,2,4].includes(i)))};ui.openDay=null;ui.chooser=null},
-  'plan-template'(el){const t=S.templates.find(x=>x.id===el.dataset.id);ui.drafts[ui.clientId]={isNew:true,name:t.name,startDate:nextMonday(),days:toWeek(freshIds(t.days))};ui.chooser=null;toast(`Loaded “${t.name}”. Adjust weights for this client, then save.`)},
+  'plan-blank'(){ui.drafts[ui.clientId]={isNew:true,name:'New routine',startDate:isSolo(client(ui.clientId))?today():nextMonday(),days:WK.map((_,i)=>newDay('',![0,2,4].includes(i)))};ui.openDay=null;ui.chooser=null},
+  'plan-template'(el){const t=S.templates.find(x=>x.id===el.dataset.id);ui.drafts[ui.clientId]={isNew:true,name:t.name,startDate:nextMonday(),days:toWeek(freshIds(t.days))};ui.chooser=null;toast(`Loaded “${t.name}”. Adjust the weights, then save.`)},
   'plan-copy'(el){const o=client(el.dataset.id);ui.drafts[ui.clientId]={isNew:true,name:o.plan.name,startDate:nextMonday(),days:toWeek(freshIds(o.plan.days))};ui.chooser=null;toast(`Copied ${first(o.name)}'s plan. Adjust weights, then save.`)},
   "edit-plan"(){const c=client(ui.clientId),d={...clone(c.plan),isNew:false};d.days=toWeek(d.days);for(const day of d.days)for(const r of day.exercises)if(progOf(r).type==="weekly"&&hasW(r.weight)){r.weight=setWeight(r,0,today(),c.plan);r.since=mondayOf(today())}ui.drafts[c.id]=d;ui.openDay=null},
   "prog-type"(el){const r=findDay(el.dataset.day).exercises.find(x=>x.id===el.dataset.row);r.prog={...progOf(r),type:el.dataset.v};if(el.dataset.v==="weekly")r.since=draftIsNew()?undefined:sinceMon()},
@@ -159,7 +267,7 @@ const ACT={
   'row-up'(el){const day=findDay(el.dataset.day),i=day.exercises.findIndex(r=>r.id===el.dataset.row);move(day.exercises,i,i-1)},
   'row-down'(el){const day=findDay(el.dataset.day),i=day.exercises.findIndex(r=>r.id===el.dataset.row);move(day.exercises,i,i+1)},
   'row-del'(el){const day=findDay(el.dataset.day);day.exercises=day.exercises.filter(r=>r.id!==el.dataset.row)},
-  'add-ex'(el){const day=findDay(el.dataset.day),c=client(ui.clientId)||TPL_CLIENT,h=exHistory(c,el.dataset.ex),last=h[h.length-1];day.exercises.push({id:uid(),exId:el.dataset.ex,sets:3,reps:'10',rest:pref(coach(ui.user.id),'defaultRest'),weight:last&&last.top!=null?last.top:"",prog:{type:"none",step:2.5,every:1},note:""});ui.focus='s-'+day.id},
+  'add-ex'(el){const day=findDay(el.dataset.day),c=client(ui.clientId)||TPL_CLIENT,h=exHistory(c,el.dataset.ex),last=h[h.length-1];day.exercises.push({id:uid(),exId:el.dataset.ex,...({sec:{sets:3,reps:'30'},min:{sets:1,reps:'20'}}[unitOf(el.dataset.ex)]||{sets:3,reps:'10'}),rest:pref(coach(ui.user.id),'defaultRest'),weight:last&&last.top!=null?last.top:"",prog:{type:"none",step:2.5,every:1},note:""});ui.focus='s-'+day.id},
   'add-typed'(el){const inp=document.getElementById('s-'+el.dataset.day),q=(inp&&inp.value||'').trim(),ql=q.toLowerCase();
     if(!q){if(inp)inp.focus();toast('Type an exercise name, then tap +.');return 'skip'}
     const m=S.exercises.filter(e=>e.name.toLowerCase().includes(ql)||e.group.toLowerCase()===ql),hit=S.exercises.find(e=>e.name.toLowerCase()===ql)||(m.length===1?m[0]:null);
@@ -172,7 +280,7 @@ const ACT={
     const running=c.plan&&(!(c.plan.activeFrom>today())||(c.planHistory||[]).length);
     if(running)return ACT['save-plan-when']({dataset:{v:ui.saveWhen||'this'}});
     const updating=!!c.plan,{isNew,...plan}=clone(d);plan.id=uid();plan.days.forEach(x=>{delete x._ex;delete x._name});plan.activeFrom=mondayOf(plan.startDate);c.plan=plan;
-    notify(c,updating?`${first(coach(c.coachId).name)} changed your routine. It starts ${fmtDate(plan.activeFrom)}.`:`${first(coach(c.coachId).name)} set up your new routine: ${plan.name}. It starts ${fmtDate(plan.activeFrom)}.`);
+    notify(c,updating?`${first(coachOf(c).name)} changed your routine. It starts ${fmtDate(plan.activeFrom)}.`:`${first(coachOf(c).name)} set up your new routine: ${plan.name}. It starts ${fmtDate(plan.activeFrom)}.`);
     delete ui.drafts[c.id];ui.saveWhen=null;save();scrollTo(0,0);toast(`Routine saved. It starts ${fmtDate(plan.activeFrom)}.`)},
   'routine-when'(el){ui.saveWhen=el.dataset.v},
   'save-plan-when'(el){const c=client(ui.clientId),d=curDraft(),mon=mondayOf(today()),from=el.dataset.v==='next'?addDays(mon,7):mon;
@@ -181,7 +289,7 @@ const ACT={
     if(oldFrom<from)c.planHistory.push({from:oldFrom,until:addDays(from,-1),plan:clone(old)});
     c.planHistory=c.planHistory.map(h=>h.until>=from?{...h,until:addDays(from,-1)}:h).filter(h=>h.from<=h.until);
     const{isNew,...plan}=clone(d);plan.id=uid();plan.days.forEach(x=>{delete x._ex;delete x._name});plan.startDate=old.startDate;plan.activeFrom=from;plan.days.forEach(x=>x.exercises.forEach(r=>{if(progOf(r).type==='weekly'&&!r.since)r.since=from}));c.plan=plan;
-    const wn=weekName(c,from),cn=first(coach(c.coachId).name);
+    const wn=weekName(c,from),cn=first(coachOf(c).name);
     notify(c,el.dataset.v==='next'?`${cn} set your new routine. It starts ${fmtDate(from)}.`:`${cn} changed your routine for this week.`);
     ui.saveWhen=null;delete ui.drafts[c.id];save();
     scrollTo(0,0);toast(el.dataset.v==='next'?`Routine saved. It starts ${fmtDate(from)}${wn?` (${wn})`:''}.`:`Routine saved for this week${wn?` (${wn})`:''}.`)},
@@ -212,7 +320,7 @@ const ACT={
   'export-data'(){
     const coachSide=ui.user.role==='coach',data=coachSide?{coach:coach(ui.user.id),clients:S.clients.filter(c=>c.coachId===ui.user.id),templates:S.templates.filter(t=>t.coachId===ui.user.id)}:{you:client(ui.user.id)};
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
-    a.download=`spotter-${coachSide?'backup':'my-data'}-${today()}.json`;document.body.appendChild(a);a.click();a.remove();
+    a.download=`gymnazo-${coachSide?'backup':'my-data'}-${today()}.json`;document.body.appendChild(a);a.click();a.remove();
     toast('Downloaded. Keep it somewhere safe.');return'skip'},
   'recent-all'(){ui.recentAll=!ui.recentAll},
   'day-scope'(el){ui.dayDraft.all=el.dataset.v==='all'},
@@ -225,11 +333,11 @@ const ACT={
       plan.id=uid();plan.days[i]={...cp,id:p.days[i].id};
       if(pFrom<from){c.planHistory=c.planHistory||[];c.planHistory.push({from:pFrom,until:addDays(from,-1),plan:clone(p)});plan.activeFrom=from}
       c.plan=plan;Object.keys(c.dayEdits).forEach(k=>{if(k>=date&&weekIdx(k)===i)delete c.dayEdits[k]});
-      notify(c,`${first(coach(c.coachId).name)} changed your ${W} workout, from ${fmtDate(date)} on.`);
+      notify(c,`${first(coachOf(c).name)} changed your ${W} workout, from ${fmtDate(date)} on.`);
       ui.dayDraft=null;save();scrollTo(0,0);toast(`Saved. Every ${W} from ${fmtDate(date)} follows this.`);return}
-    c.dayEdits[date]=cp;notify(c,`${first(coach(c.coachId).name)} changed your workout for ${fmtDate(date)}.`);
+    c.dayEdits[date]=cp;notify(c,`${first(coachOf(c).name)} changed your workout for ${fmtDate(date)}.`);
     ui.dayDraft=null;save();scrollTo(0,0);toast(`Saved. Only ${fmtDate(date)} changes.`)},
-  'day-edit-reset'(){const c=client(ui.clientId),{date}=ui.dayDraft;delete c.dayEdits[date];notify(c,`${first(coach(c.coachId).name)} put ${fmtDate(date)} back to your usual routine.`);
+  'day-edit-reset'(){const c=client(ui.clientId),{date}=ui.dayDraft;delete c.dayEdits[date];notify(c,`${first(coachOf(c).name)} put ${fmtDate(date)} back to your usual routine.`);
     ui.dayDraft=null;save();scrollTo(0,0);toast(`${fmtDate(date)} is back to the usual routine.`)},
   'save-template'(){const d=curDraft();S.templates.push({id:uid(),coachId:ui.user.id,name:d.name,days:toWeek(freshIds(d.days))});save();toast(`Saved “${d.name}” as a template. Find it in the Templates tab.`)},
   // templates tab
@@ -275,7 +383,7 @@ const ACT={
   'inv-go'(el){ui.clientSheet=null;ui.view='invites';ui.invOpen=el.dataset.id;scrollTo(0,0)},
   'inv-ask-cancel'(el){ui.confirm={id:el.dataset.id,kind:'cancelinv'}},
   'inv-cancel'(el){const c=client(el.dataset.id);S.clients=S.clients.filter(x=>x.id!==c.id);ui.confirm=null;ui.invOpen=null;save();toast(`Invite for ${c.name} cancelled.`)},
-  'copy-invite'(el){const c=client(el.dataset.id),txt=el.dataset.msg?inviteMsg(c,coach(c.coachId)):inviteLink(c);
+  'copy-invite'(el){const c=client(el.dataset.id),txt=el.dataset.msg?inviteMsg(c,coachOf(c)):inviteLink(c);
     const fallback=()=>{const s=$('#link-'+c.id);if(s){const r=document.createRange();r.selectNodeContents(s);const sel=getSelection();sel.removeAllRanges();sel.addRange(r)}toast('Copying is blocked here. The link is selected, so copy it yourself.')};
     try{navigator.clipboard.writeText(txt).then(()=>toast(el.dataset.msg?'Message copied. Paste it into WhatsApp or a text.':'Link copied.'),fallback)}catch(x){fallback()}return'skip'},
   'new-invite'(el){const c=client(el.dataset.id);c.inviteCode=newCode();c.invitedAt=today();save();toast('New link made. The old link no longer works.')},
@@ -285,7 +393,7 @@ const ACT={
   'do-swap'(el){const c=client(ui.user.id),T=today(),r=dayAt(c,T).day.exercises.find(x=>x.id===el.dataset.row);
     c.swaps=c.swaps||{};c.swaps[T]=c.swaps[T]||{};c.swaps[T][r.id]=el.dataset.ex;if(c.session&&c.session.sets)delete c.session.sets[r.id];
     c.swapFeed=(c.swapFeed||[]).filter(x=>!(x.date===T&&x.rowId===r.id));c.swapFeed.push({id:uid(),date:T,rowId:r.id,from:r.exId,to:el.dataset.ex,ts:Date.now(),synced:S.online});
-    ui.swapRow=null;save();toast(`Swapped to ${exById(el.dataset.ex).name} for today. ${first(coach(c.coachId).name)} will see it.`)},
+    ui.swapRow=null;save();toast(`Swapped to ${exById(el.dataset.ex).name} for today.${isSolo(c)?'':` ${first(coachOf(c).name)} will see it.`}`)},
   'undo-swap'(el){const c=client(ui.user.id),T=today();if(c.swaps&&c.swaps[T])delete c.swaps[T][el.dataset.row];if(c.session&&c.session.sets)delete c.session.sets[el.dataset.row];
     c.swapFeed=(c.swapFeed||[]).filter(x=>!(x.date===T&&x.rowId===el.dataset.row));ui.swapRow=null;save();toast('Back to the original exercise.')},
   'notif-open'(){const o=notifOwner();ui.notifPrev=o.notifRead||0;o.notifRead=Date.now();save();ui.notifSheet=true;render();return'skip'},
@@ -316,18 +424,19 @@ const ACT={
   'open-ex'(el){ui.view='exercise';ui.rowId=el.dataset.row;scrollTo(0,0)},
   'set-done'(el){const c=client(ui.user.id),inf=dayAt(c,today()),r=inf.day.exercises.find(x=>x.id===el.dataset.row),s=getSets(c,r)[+el.dataset.i];s.done=!s.done;if(s.done&&!c.session.startedAt)c.session.startedAt=Date.now();save();
     if(s.done){const all=inf.day.exercises.every(x=>{const ss=getSets(c,x,false);return ss&&ss.every(y=>y.done)});if(all){stopTimer();toast('All sets done. Head back and tap Finish workout.')}else if(pref(c,'autoTimer'))startTimer(+r.rest+restBonus(c),`${exById(effRow(c,r).exId).name}, set ${+el.dataset.i+1} done`)}},
-  'finish-open'(){ui.finishing={rpe:null};renderSheet();return'skip'},
+  'finish-open'(){const pv=((client(ui.user.id)||{}).session||{}).prev||{};ui.finishing={rpe:pv.rpe||null,note:pv.note||''};renderSheet();return'skip'},
   rpe(el){ui.finishing.rpe=+el.dataset.v;renderSheet();return'skip'},
   finish(){const c=client(ui.user.id),inf=dayAt(c,today()),f=finishSummary(c),T=today();
     c.logs.push({id:uid(),date:T,dayId:inf.day.id,dayName:dayLabel(weekIdx(T),inf.day),entries:f.entries,rpe:ui.finishing.rpe,durationMin:f.mins||1,prs:f.prs,note:(ui.finishing.note||'').trim(),finishedAt:Date.now(),synced:S.online});
     // "when reps are hit": every set at or above its target weight and at the top of the rep range
-    const ups=[];
+    const ups=[],undo=[];
     for(const r of inf.day.exercises){const e=f.entries.find(x=>x.rowId===r.id),p=progOf(r);if(!e||p.type!=='earned'||!hasW(r.weight))continue;const top=topReps(r.reps);
-      if(e.sets.length>=r.sets&&e.sets.every((s,i)=>hasW(s.w)&&+s.w>=setWeight(r,i,T,c.plan)&&(+s.r||0)>=(top||0))){const from=+r.weight;r.weight=+(from+(+p.step||0)).toFixed(2);c.progressions.push({date:T,exId:r.exId,from,to:r.weight,synced:S.online});ups.push(`${exById(r.exId).name} → ${kg(r.weight)} kg`)}}
+      if(e.sets.length>=r.sets&&e.sets.every((s,i)=>hasW(s.w)&&+s.w>=setWeight(r,i,T,c.plan)&&(+s.r||0)>=(top||0))){const from=+r.weight;r.weight=+(from+(+p.step||0)).toFixed(2);undo.push({rowId:r.id,exId:r.exId,from});for(const pr of planRows(c))if(pr.id===r.id)pr.weight=r.weight;c.progressions.push({date:T,exId:r.exId,from,to:r.weight,synced:S.online});ups.push(`${exById(r.exId).name} → ${kg(r.weight)} kg`)}}
+    if(undo.length)c.logs[c.logs.length-1].ups=undo; // remembered so "Edit workout" can take it back
     c.session=null;ui.finishing=null;stopTimer();save();
     if(f.prs.length)confetti();
-    const cn=first(coach(c.coachId).name);
-    toast((ups.length?`Next time: ${ups.join(', ')}. `:'')+(S.online?`Saved. ${cn} can see it now.`:`Saved on this phone. ${cn} sees it when you're back online.`))},
+    const cn=first(coachOf(c).name);
+    toast((ups.length?`Next time: ${ups.join(', ')}. `:'')+(isSolo(c)?'Workout saved.':S.online?`Saved. ${cn} can see it now.`:`Saved on this phone. ${cn} sees it when you're back online.`))},
   'timer-add'(){if(timer){timer.end+=15000;timer.total+=15}tickTimer();return'skip'},
   'timer-skip'(){stopTimer();return'skip'},
   // demo bar
@@ -347,6 +456,7 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('input',e=>{
   const t=e.target,ds=t.dataset;
+  if(ds.wl&&ui.welcome){ui.welcome[ds.wl]=t.value;const b=$('#wl-next');if(b)b.disabled=!t.value.trim();return}
   if(ds.cropzoom!==undefined&&ui.crop){cropZoomTo(+t.value);return}
   if(ds.gsearch!==undefined){ui.sq=t.value;$('#gs-results').innerHTML=appSearchResults(t.value);return}
   if(ds.pf){curDraft()[ds.pf]=t.value;const h=$('#cycle-hint');if(h)h.textContent=cycleHint(curDraft());return}
@@ -395,7 +505,7 @@ document.addEventListener('change',e=>{
   const pickFor=t.dataset.mypic!==undefined?'avatar':t.dataset.setlogo!==undefined?'logo':t.dataset.oblogo!==undefined?'oblogo':null;
   if(pickFor&&t.files[0]){openCrop(t.files[0],pickFor);t.value='';return}
   if(t.dataset.vid&&t.files[0]){readVideo(t.files[0],src=>{exById(t.dataset.vid).video=src;save();renderSheet();toast('Video saved. Clients see it instead of the animation.')});return}
-  if(t.dataset.fcfile&&t.files[0]){const c=client(ui.user.id),file=t.files[0],cn=first(coach(c.coachId).name);
+  if(t.dataset.fcfile&&t.files[0]){const c=client(ui.user.id),file=t.files[0],cn=first(coachOf(c).name);
     if(file.size>150*1024*1024){toast('That video is very long. Film one set, about 10 to 30 seconds.');return}
     const id=uid();VDB.put(id,file).then(()=>{vURL[id]=URL.createObjectURL(file);c.formChecks=c.formChecks||[];c.formChecks.push({id,date:today(),exId:t.dataset.fcfile,note:'',ts:Date.now(),synced:S.online,reply:null});save();render();toast(S.online?`Sent to ${cn}. Add a note if you like.`:`Saved on this phone. It sends when you're back online.`)})
       .catch(()=>toast("This browser couldn't save the video. Try a shorter clip."));return}
@@ -414,22 +524,32 @@ document.addEventListener('submit',e=>{
   if(k==='coach-profile'){const o=coach(ui.user.id),n=String(fd.get('name')||'').trim();if(!n){toast('Enter your name.');return}o.name=n;o.business=String(fd.get('business')||'').trim();save();render();toast('Profile saved.');return}
   if(k==='edit-client'){const c=client(ui.clientId),n=String(fd.get('name')||'').trim();if(!n){toast('Enter a name.');return}c.name=n;c.goal=String(fd.get('goal')||'').trim();ui.clientSheet=null;save();render();renderSheet();toast('Client details saved.');return}
   if(k==='my-name'){const c=client(ui.user.id),n=String(fd.get('name')||'').trim();if(!n){toast('Enter a name.');return}c.selfName=n;ui.nameSheet=false;save();render();toast(`Got it, ${first(n)}.`);return}
-  if(k==='join'){const c=client(ui.user.id);if(String(fd.get('pw')).length<8){toast('Use at least 8 characters for your password.');return}const nm=String(fd.get('name')||'').trim();c.invitedAs=c.name;if(nm){c.name=nm;c.selfName=nm}c.status='active';c.joinedTs=Date.now();c.joinSeen=false;c.joinedAt=today();ui.join=null;c.notes.unshift({id:uid(),text:`Welcome! You're now connected to ${coach(c.coachId).name}. Your plan shows here as soon as it's ready.`,ts:Date.now()});save();render();toast('Welcome to Spotter.');return}
+  if(k==='join-coach'){const me=client(ui.user.id),code=String(fd.get('code')||'').trim().replace(/.*\//,'').toUpperCase(),inv=S.clients.find(x=>isInvited(x)&&x.inviteCode===code);
+    if(!inv){toast("That code doesn't match an invite. Check it with your coach.");return}
+    if(inv.coachId===me.asCoachId){toast("That invite is from your own Coach mode.");return}
+    const co=coach(inv.coachId);
+    // keep all the history; if the coach already built a routine, it takes over and the old one is filed under past routines
+    if(inv.plan){const np=inv.plan,from=np.activeFrom||mondayOf(np.startDate),old=me.plan;
+      if(old){const of=old.activeFrom||mondayOf(old.startDate);if(of<from){me.planHistory=me.planHistory||[];me.planHistory.push({from:of,until:addDays(from,-1),plan:clone(old)})}}me.plan=np}
+    me.coachId=inv.coachId;me.solo=false;if(inv.goal&&!me.goal)me.goal=inv.goal;me.invitedAs=inv.name;me.joinedTs=Date.now();me.joinSeen=false;me.joinedAt=today();
+    S.clients=S.clients.filter(x=>x.id!==inv.id);ui.joinSheet=false;ui.view='today';
+    me.notes.unshift({id:uid(),text:`You're now training with ${co.name}. They set your routine and can see your workouts.`,ts:Date.now()});save();render();toast(`Connected to ${co.business||co.name}.`);return}
+  if(k==='join'){const c=client(ui.user.id);if(String(fd.get('pw')).length<8){toast('Use at least 8 characters for your password.');return}const nm=String(fd.get('name')||'').trim();c.invitedAs=c.name;if(nm){c.name=nm;c.selfName=nm}c.status='active';c.joinedTs=Date.now();c.joinSeen=false;c.joinedAt=today();ui.join=null;c.notes.unshift({id:uid(),text:`Welcome! You're now connected to ${coachOf(c).name}. Your plan shows here as soon as it's ready.`,ts:Date.now()});save();render();toast('Welcome to Gymnazo.');return}
   if(k==='send'){const text=fd.get('text').trim();if(!text)return;const role=ui.user.role,c=role==='coach'?client(ui.clientId):client(ui.user.id);c.messages.push({from:role,text,ts:Date.now(),synced:role==='coach'?true:S.online});if(role==='coach')c.coachRead=Date.now();save();ui.focus='msg-input';render();return}
-  if(k==='checkin'){const c=client(ui.user.id),v=ui.ci||{},T=today(),mon=mondayOf(T),cn=first(coach(c.coachId).name),w=parseFloat(String(v.kg||'').replace(',','.'));
+  if(k==='checkin'){const c=client(ui.user.id),v=ui.ci||{},T=today(),mon=mondayOf(T),cn=first(coachOf(c).name),w=parseFloat(String(v.kg||'').replace(',','.'));
     if(!(w>20&&w<400)){toast('Enter your weight in kilograms, for example 78.4.');ui.focus='ci-kg';render();return}
-    if(!v.sleep||!v.stress){toast('Tap a number for sleep and for stress.');return}
+    if(!isSolo(c)&&(!v.sleep||!v.stress)){toast('Tap a number for sleep and for stress.');return}
     const mm={};MEAS.forEach(([m])=>{const x=parseFloat(String(v['m_'+m]||'').replace(',','.'));if(x>10&&x<300)mm[m]=Math.round(x*10)/10});
     if(Object.keys(mm).length){c.measures=(c.measures||[]).filter(x=>x.date!==T);c.measures.push({id:uid(),date:T,...mm,synced:S.online})}
     const kgv=Math.round(w*10)/10;c.weights=c.weights.filter(x=>x.date!==T);c.weights.push({id:uid(),date:T,kg:kgv,synced:S.online});
     const old=ciOf(c,mon);c.checkins=(c.checkins||[]).filter(x=>x.week!==mon);
     c.checkins.push({id:old?old.id:uid(),week:mon,date:T,kg:kgv,sleep:v.sleep,stress:v.stress,note:String(v.note||'').trim(),ts:Date.now(),synced:S.online,reply:old?old.reply:null});
-    ui.ci=null;ui.showMeas=false;ui.showPhotos=false;save();render();scrollTo(0,0);toast(S.online?`Check-in sent. ${cn} will reply here.`:"Saved on this phone. It sends when you're back online.");return}
+    ui.ci=null;ui.showMeas=false;ui.showPhotos=false;save();render();scrollTo(0,0);toast(isSolo(c)?'Saved.':S.online?`Check-in sent. ${cn} will reply here.`:"Saved on this phone. It sends when you're back online.");return}
   if(k==='ci-reply'||k==='fc-reply'){const c=client(ui.clientId),text=String(fd.get('text')||'').trim();if(!text){toast('Write a reply first.');return}
-    const x=(k==='ci-reply'?c.checkins:c.formChecks).find(y=>y.id===f.dataset.id);x.reply={text,ts:Date.now()};const cn=first(coach(c.coachId).name);
+    const x=(k==='ci-reply'?c.checkins:c.formChecks).find(y=>y.id===f.dataset.id);x.reply={text,ts:Date.now()};const cn=first(coachOf(c).name);
     notify(c,k==='ci-reply'?`${cn} replied to your weekly check-in.`:`${cn} replied to your ${exById(x.exId).name} form check.`,'progress');save();render();toast(`Reply sent to ${first(c.name)}.`);return}
   if(k==='add-ex'){const like=exById(fd.get('like')),name=fd.get('name').trim(),file=fd.get('video');
-    const done=video=>{S.exercises.push({id:'u'+uid(),name,group:fd.get('group'),pattern:like.pattern,load:like.load,custom:true,coachId:ui.user.id,video:video||undefined});save();ui.libGroup='Yours';ui.libQ='';render();toast(`Added “${name}”.`)};
+    const done=video=>{S.exercises.push({id:'u'+uid(),name,group:fd.get('group'),pattern:like.pattern,load:like.load,unit:fd.get('unit')||'reps',custom:true,coachId:ui.user.id,video:video||undefined});save();ui.libGroup='Yours';ui.libQ='';render();toast(`Added “${name}”.`)};
     if(file&&file.size)readVideo(file,done);else done(null)}
 });
 /* drag to reorder exercises within a day (handle only) */
@@ -441,7 +561,7 @@ document.addEventListener('drop',e=>{const li=e.target.closest&&e.target.closest
 document.addEventListener('dragend',()=>{drag=null;document.querySelectorAll('.exrow').forEach(x=>{x.draggable=false;x.classList.remove('dragging','drop')})});
 
 render();
-SpotterAnim.start();
+GymnazoAnim.start();
 // installed app: keep working offline (only where the page is its own site, not inside a preview frame)
 if('serviceWorker' in navigator&&location.protocol==='https:'&&window.top===window)navigator.serviceWorker.register('sw.js').catch(()=>{});
 

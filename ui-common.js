@@ -1,11 +1,11 @@
 /* ui-common.js: building blocks that lots of screens share.
    Icons, the bottom tab bar, small charts, the progress ring, chat bubbles and photos.
    Every function here returns a string of HTML. The app glues those strings together and puts them on the page. */
-/* The Spotter mark: a barbell bent into an S. Follows the text colour, so it matches every theme. */
-const SPOTTER_MARK='<svg class="smark" viewBox="0 0 64 64" aria-hidden="true"><path d="M44 17H24a8 8 0 0 0 0 16h16a8 8 0 0 1 0 16H20" fill="none" stroke="currentColor" stroke-width="6"/><g fill="currentColor"><rect x="44" y="10" width="4.5" height="14" rx="1.5"/><rect x="50.5" y="6" width="6.5" height="22" rx="2"/><rect x="15.5" y="42" width="4.5" height="14" rx="1.5"/><rect x="7" y="38" width="6.5" height="22" rx="2"/></g></svg>';
+/* The Gymnazo mark: a G with weight plates in the middle. Follows the text colour, so it matches every theme. */
+const APP_MARK='<svg class="smark" viewBox="0 0 64 64" aria-hidden="true"><path d="M46.9 18.6A20 20 0 1 0 52 32H38" fill="none" stroke="currentColor" stroke-width="6"/><g fill="currentColor"><rect x="33" y="25.5" width="4.5" height="13" rx="1.5"/><rect x="25" y="22" width="6.5" height="20" rx="2"/></g></svg>';
 /* ui = what's on screen right now (which page, which tab, what's open).
    It is NOT saved. S (in data.js) is the real data and that IS saved. */
-const ui={user:{role:'coach',id:'co1'},view:'clients',clientId:null,tab:'workouts',drafts:{},chooser:null,rowId:null,
+const ui={modePick:false,welcome:null,user:{role:'coach',id:'co1'},view:'clients',clientId:null,tab:'workouts',drafts:{},chooser:null,rowId:null,
   libGroup:'All',libQ:'',preview:null,olEx:null,ready:null,finishing:null,confirm:null,showPast:false,copyOpen:false};
 
 const ICON={
@@ -13,6 +13,7 @@ const ICON={
   exercises:'<svg viewBox="0 0 24 24"><path d="M3 9v6M6 6.5v11M18 6.5v11M21 9v6M6 12h12"/></svg>',
   templates:'<svg viewBox="0 0 24 24"><rect x="4" y="3.5" width="12" height="15" rx="1"/><path d="M8 21h10a2 2 0 0 0 2-2V7"/><path d="M7.5 8h5M7.5 11.5h5"/></svg>',
   today:'<svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>',
+  routine:'<svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="1.5"/><path d="M9 4V2.8h6V4M8.5 10h7M8.5 14h7M8.5 18h4"/></svg>',
   calendar:'<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="1.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M8.5 14.5l2 2 4-4"/></svg>',
   reports:'<svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
   progress:'<svg viewBox="0 0 24 24"><path d="M3.5 19.5h17"/><path d="M5 15l4.5-4.5 3.5 3 6-7"/><path d="M15 6.5h4v4"/></svg>',
@@ -65,21 +66,22 @@ function photosHistory(photos){
 // the chat between a coach and a client, same layout for both sides
 function chatView(c,role){
   const msgs=role==='coach'?c.messages.filter(m=>m.synced!==false):c.messages;
-  const other=role==='coach'?first(c.name):first(coach(c.coachId).name);
+  const other=role==='coach'?first(c.name):first(coachOf(c).name);
   return `<div class="chat"><ol class="msgs" id="msgs">${msgs.length?msgs.map(m=>`<li class="msg ${m.from===role?'me':'them'} ${m.synced===false?'pending':''}"><p>${esc(m.text)}</p><time>${fmtTime(m.ts)}${m.synced===false?' · waiting to send':''}</time></li>`).join(''):`<li class="hint">No messages yet. Say hello to ${esc(other)}.</li>`}</ol>
   <form class="composer" data-form="send"><input id="msg-input" name="text" placeholder="Message ${esc(other)}" autocomplete="off" required><button class="btn primary">Send</button></form></div>`;
 }
 /* Plain-English description of what was lifted, e.g. "3 sets of 10 reps at 24 kg" or "3 sets at 24 kg: 10, 10, 9 reps" */
-function setsText(sets){
+// "3 sets of 10 reps at 20 kg". The unit is reps unless the exercise is timed (sec or min)
+function setsText(sets,u='reps'){
   if(!sets||!sets.length)return'';
   const n=sets.length,ws=sets.map(s=>hasW(s.w)?kg(s.w):null),rs=sets.map(s=>String(s.r));
   const sameW=ws.every(w=>w===ws[0]),sameR=rs.every(r=>r===rs[0]),word=`${n} set${n>1?'s':''}`,at=ws[0]?` at ${ws[0]} kg`:'';
   const and=a=>a.length>1?a.slice(0,-1).join(', ')+' and '+a[a.length-1]:a[0];
-  if(sameW)return sameR?`${word} of ${rs[0]} reps${at}`:`${word}${at}: ${and(rs)} reps`;
-  if(sameR&&ws.every(Boolean))return `${word} of ${rs[0]} reps: ${and(ws)} kg`;
-  return sets.map(s=>hasW(s.w)?`${s.r} reps at ${kg(s.w)} kg`:`${s.r} reps`).join(', ');
+  if(sameW)return sameR?`${word} of ${rs[0]} ${u}${at}`:`${word}${at}: ${and(rs)} ${u}`;
+  if(sameR&&ws.every(Boolean))return `${word} of ${rs[0]} ${u}: ${and(ws)} kg`;
+  return sets.map(s=>hasW(s.w)?`${s.r} ${u} at ${kg(s.w)} kg`:`${s.r} ${u}`).join(', ');
 }
-const repsText=(sets,reps)=>`${sets} set${sets>1?'s':''} of ${esc(reps)} reps`;
+const repsText=(sets,reps,u='reps')=>`${sets} set${sets>1?'s':''} of ${esc(reps)} ${u}`;
 const statusPill=st=>`<span class="pill ${st.key==='pr'||st.key==='up'?'ok':''}">${st.key==='pr'?'★ ':st.key==='up'?'▲ ':st.key==='down'?'▼ ':''}${st.label}</span>`;
 function readyPill(score){return score==null?'':`<span class="pill ${readyCls(score)}">Energy ${score}/100</span>`}
-function targetsLine(r,c){const w=weightText(r,today(),c&&c.plan);return `${repsText(r.sets,r.reps)}${w?` · <b class="mono">${w}</b>`:''} · ${fmtRest(r.rest)} rest`}
+function targetsLine(r,c){const w=weightText(r,today(),c&&c.plan);return `${repsText(r.sets,r.reps,unitOf(r.exId))}${w?` · <b class="mono">${w}</b>`:''} · ${fmtRest(r.rest)} rest`}

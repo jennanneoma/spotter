@@ -1,4 +1,4 @@
-/* Spotter: going back, and the search box */
+/* Gymnazo: going back, and the search box */
 
 /* ---------- Going back ----------
    Every time you move to a new page we save a small "snapshot" of where you were.
@@ -18,7 +18,7 @@ function trackPage(before){
   if(top&&pageId(top)===pageId(now)){ui.hist.pop();return}
   ui.hist.push(before);if(ui.hist.length>40)ui.hist.shift();
   // also tell the browser, so the phone's own back gesture works too
-  try{history.pushState({spotter:ui.hist.length},'');pushedStates++}catch(e){}
+  try{history.pushState({gymnazo:ui.hist.length},'');pushedStates++}catch(e){}
 }
 let pushedStates=0,skipPop=false;
 function goBack(fallback){
@@ -34,7 +34,7 @@ addEventListener('popstate',()=>{
 
 // What to call the page you'd go back to, e.g. "‹ Jennifer" or "‹ Reports"
 function pageName(p){
-  const names={clients:'Clients',invites:'Invites',reports:'Reports',templates:'Templates',exercises:'Exercises',settings:'Settings',today:'Today',calendar:'Calendar',progress:'Progress',chat:'Chat',exercise:'Workout'};
+  const names={clients:'Clients',invites:'Invites',reports:'Reports',templates:'Templates',exercises:'Exercises',settings:'Settings',today:'Today',routine:'Routine',calendar:'Calendar',progress:'Progress',chat:'Chat',exercise:'Workout'};
   if(p.view==='client'&&p.clientId){const c=client(p.clientId);if(c)return first(c.name)}
   if(p.view==='reports'&&p.repClient){const c=client(p.repClient);if(c)return first(c.name)}
   return names[p.view]||'Back';
@@ -61,6 +61,7 @@ function searchPages(){
     {t:'Templates',k:'routines saved plans',to:'nav',v:'templates'},
     {t:'Exercise library',k:'exercises videos animations moves',to:'nav',v:'exercises'},
     {t:'Notifications',k:'alerts bell',to:'notif-open'},
+    {t:'Switch mode',k:'individual coach mode change',to:'mode-open',s:'Settings'},
     {t:'Settings',k:'preferences options profile',to:'settings-open'},
     {t:'Profile and logo',k:'business name brand',to:'settings-open',s:'Settings'},
     {t:'Theme',k:'colour color dark light look',to:'theme-open',s:'Settings'},
@@ -70,14 +71,16 @@ function searchPages(){
     {t:'Download a backup',k:'export data save file',to:'export-data',s:'Settings'},
     {t:'Add to home screen',k:'install app phone',to:'install-open',s:'Settings'},
   ];
+  const solo=isSolo(client(ui.user.id));
   return[
     {t:'Today',k:'home workout train',to:'nav',v:'today'},
+    ...(solo?[{t:'Routine',k:'plan program build edit days exercises',to:'nav',v:'routine'}]:[]),
     {t:'Calendar',k:'history past workouts done missed days month report',to:'nav',v:'calendar'},
-    {t:'Weekly check-in',k:'checkin weight sleep stress',to:'nav',v:'progress',s:'Progress'},
-    {t:'Form checks',k:'video film technique',to:'nav',v:'progress',s:'Progress'},
+    ...(solo?[{t:'Log this week',k:'weight sleep stress weekly log',to:'nav',v:'progress',s:'Progress'}]:[{t:'Weekly check-in',k:'checkin weight sleep stress',to:'nav',v:'progress',s:'Progress'},{t:'Form checks',k:'video film technique',to:'nav',v:'progress',s:'Progress'}]),
     {t:'Progress',k:'weight measurements photos lifts',to:'nav',v:'progress'},
-    {t:'Chat with your coach',k:'messages message talk',to:'nav',v:'chat'},
+    ...(solo?[]:[{t:'Chat with your coach',k:'messages message talk',to:'nav',v:'chat'}]),
     {t:'Notifications',k:'alerts bell',to:'notif-open'},
+    {t:'Switch mode',k:'individual coach mode change',to:'mode-open',s:'Settings'},
     {t:'Settings',k:'preferences options',to:'settings-open'},
     {t:'Workout reminders',k:'alarm notify time',to:'rem-open',s:'Settings'},
     {t:'Theme',k:'colour color dark light look',to:'theme-open',s:'Settings'},
@@ -87,7 +90,7 @@ function searchPages(){
   ];
 }
 // Sections inside a client's page, so "lifts" can also offer "Jennifer · Lifts"
-const CLIENT_TABS=[['workouts','Workouts','routine plan days'],['overload','Lifts','strength progress overload'],['progress','Check-ins','checkin weight photos form'],['chat','Chat','messages message']];
+const CLIENT_TABS=[['workouts','Workouts','routine plan days'],['report','Report','lifts strength progress overload body weight calendar history'],['progress','Check-ins','checkin weight photos form'],['chat','Chat','messages message']];
 
 // true if every word typed shows up somewhere in the text
 const hit=(text,q)=>{const t=text.toLowerCase();return q.split(/\s+/).every(w=>t.includes(w))};
@@ -110,7 +113,7 @@ function searchGroups(q){
     add('Clients',mine.filter(c=>hit(c.name+' '+(c.goal||''),q)).map(c=>({t:c.name,s:c.goal||'',to:'open-client',id:c.id,ic:'av',av:avatarOf(c)})));
     // typed a section name? offer that section for each client
     const tab=CLIENT_TABS.find(([,l,k])=>hit(l+' '+k,q));
-    if(tab)add(tab[1],mine.slice(0,5).map(c=>({t:`${first(c.name)} · ${tab[1]}`,s:'',to:'open-client',id:c.id,then:`tab=${tab[0]}`,ic:'av',av:avatarOf(c)})));
+    if(tab)add(tab[1],mine.slice(0,5).map(c=>({t:`${first(c.name)} · ${tab[1]}`,s:'',...(tab[0]==='report'?{to:'open-report'}:{to:'open-client',then:`tab=${tab[0]}`}),id:c.id,ic:'av',av:avatarOf(c)})));
   }
   add('Pages and settings',searchPages().filter(p=>hit(p.t+' '+p.k+' '+(p.s||''),q)));
   // exercises: the coach sees the whole library, a client only what's in their plan

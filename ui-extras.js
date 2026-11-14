@@ -1,15 +1,17 @@
 /* ui-extras.js: the smaller features, one numbered section each.
    Setting up a new coach, invite links, reminders, swapping an exercise, notes, measurements,
    the weekly summary, themes, notifications and settings. */
-const INVITE_HOST='https://spotter.example/join/';
+const INVITE_HOST='https://gymnazo.example/join/';
 const inviteLink=c=>INVITE_HOST+c.inviteCode;
-const inviteMsg=(c,co)=>`Hi ${first(c.name)}, I've set up your training on Spotter${co.business?` with ${co.business}`:''}. Tap this link to join and see your plan: ${inviteLink(c)}`;
+const inviteMsg=(c,co)=>`Hi ${first(c.name)}, I've set up your training on Gymnazo${co.business?` with ${co.business}`:''}. Tap this link to join and see your plan: ${inviteLink(c)}`;
 const newCode=()=>Array.from({length:6},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*32)]).join('');
 const isInvited=c=>c.status==='invited';
 const BELL='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg>';
 
 /* ---------- branding ---------- */
 function brandMark(co,size=28){
+  // training on your own: show the Gymnazo mark, since there's no coach's logo
+  if(co.solo)return `<span class="brandlogo appmark" style="width:${size}px;height:${size}px" aria-hidden="true">${APP_MARK}</span>`;
   return co.logo?`<img class="brandlogo" src="${co.logo}" alt="" width="${size}" height="${size}">`:`<span class="brandlogo mono" style="width:${size}px;height:${size}px" aria-hidden="true">${initials(co.business||co.name)}</span>`;
 }
 const brandBar=co=>`<div class="brandbar">${brandMark(co)}<span><b>${esc(co.business||co.name)}</b><small>Coach ${esc(co.name)}</small></span></div>`;
@@ -19,7 +21,7 @@ function onboardingView(co){
   const step=ui.obStep||1,d=ui.ob||(ui.ob={name:co.name==='New coach'?'':co.name,business:co.business||'',logo:co.logo||null,cname:'',cgoal:''});
   const dots=[1,2,3].map(n=>`<i class="${n<=step?'on':''}"></i>`).join('');
   let body='';
-  if(step===1)body=`<header class="hd"><p class="eyebrow">Step 1 of 3</p><span class="obmark">${SPOTTER_MARK}</span><h1>Welcome to Spotter</h1><p class="sub">Let's set up your coaching business. Your clients will see this name in their app.</p></header>
+  if(step===1)body=`<header class="hd"><p class="eyebrow">Step 1 of 3</p><span class="obmark">${APP_MARK}</span><h1>Welcome to Gymnazo</h1><p class="sub">Let's set up your coaching business. Your clients will see this name in their app.</p></header>
     <div class="card hud"><label>Your name<input id="ob-name" data-ob="name" value="${esc(d.name)}" placeholder="e.g. Immanuel Adeshina" autocomplete="name"></label>
     <label>Business name<input id="ob-business" data-ob="business" value="${esc(d.business)}" placeholder="e.g. Immanuel Fitness"></label>
     <p class="hint">You can change both later.</p></div>
@@ -44,8 +46,8 @@ function inviteCard(c,co,fresh){
     <div class="btnrow"><a class="btn primary" href="https://wa.me/?text=${encodeURIComponent(inviteMsg(c,co))}" target="_blank" rel="noopener">Send on WhatsApp</a><button class="btn" data-act="copy-invite" data-id="${c.id}" data-msg="1">Copy message</button></div>${fresh?'':`<div class="btnrow"><button class="btn sm" data-act="open-client" data-id="${c.id}">Build their routine</button><button class="btn ghost sm" data-act="new-invite" data-id="${c.id}">Make a new link</button></div>`}</div>`;
 }
 function joinView(c){
-  const co=coach(c.coachId),j=ui.join||(ui.join={name:'',email:'',pw:''});
-  return `<main class="screen"><div class="joinhero">${brandMark(co,64)}<p class="eyebrow">You're invited</p><h1>Train with ${esc(co.business||co.name)}</h1><p class="sub">${esc(co.name)} has set up Spotter for you. Create your account to see your plan and start logging workouts.</p></div>
+  const co=coachOf(c),j=ui.join||(ui.join={name:'',email:'',pw:''});
+  return `<main class="screen"><div class="joinhero">${brandMark(co,64)}<p class="eyebrow">You're invited</p><h1>Train with ${esc(co.business||co.name)}</h1><p class="sub">${esc(co.name)} has set up Gymnazo for you. Create your account to see your plan and start logging workouts.</p></div>
     <form class="card hud" data-form="join"><label>What should we call you?<input id="jn-name" name="name" value="${esc(j.name)}" required placeholder="Your first name" autocomplete="given-name"></label>
     <label>Email<input id="jn-email" name="email" type="email" required placeholder="you@example.com" autocomplete="email"></label>
     <label>Create a password<input id="jn-pw" name="pw" type="password" required minlength="8" placeholder="At least 8 characters" autocomplete="new-password"></label>
@@ -61,12 +63,12 @@ function reminderRow(c){
   return `<button class="remrow ${r.on?'on':''}" data-act="rem-open">${BELL}<span>${r.on?`Reminder at <b>${fmt12(r.time)}</b> on training days`:'Turn on workout reminders'}</span><span class="chev" aria-hidden="true">›</span></button>`;
 }
 function reminderSheet(c){
-  const r=c.reminder||{on:false,time:'07:00'},nx=nextTrainingDays(c,3),co=coach(c.coachId),first1=nx[0];
+  const r=c.reminder||{on:false,time:'07:00'},nx=nextTrainingDays(c,3),co=coachOf(c),first1=nx[0];
   return `<div class="card hud sheetcard" role="dialog" aria-label="Workout reminders"><div class="section-hd"><h2>Workout reminders</h2><button class="icon-btn" data-act="close-sheet" aria-label="Close">✕</button></div>
     <p class="hint">Get a notification on the days your routine has a workout. Rest days stay quiet.</p>
     <label class="switch big"><input type="checkbox" id="rem-on" data-rem="on" ${r.on?'checked':''}><span>Remind me on training days</span></label>
     <label>Time<input type="time" id="rem-time" data-rem="time" value="${r.time}" ${r.on?'':'disabled'}></label>
-    ${first1?`<p class="eyebrow">Preview</p><div class="notif"><span class="nicon">${brandMark(co,34)}</span><span class="nbody"><span class="ntop"><b>Spotter</b><small>${first1.date===today()?'today':fmtDate(first1.date)} · ${fmt12(r.time)}</small></span><span><b>${esc(dayTitle(first1.day))} today.</b> ${first1.day.exercises.length} exercises from ${esc(first(co.name))}. Tap to start.</span></span></div>
+    ${first1?`<p class="eyebrow">Preview</p><div class="notif"><span class="nicon">${brandMark(co,34)}</span><span class="nbody"><span class="ntop"><b>Gymnazo</b><small>${first1.date===today()?'today':fmtDate(first1.date)} · ${fmt12(r.time)}</small></span><span><b>${esc(dayTitle(first1.day))} today.</b> ${first1.day.exercises.length} exercises${co.solo?'':` from ${esc(first(co.name))}`}. Tap to start.</span></span></div>
     <p class="hint">Next reminders: ${nx.map(x=>`${fmtDate(x.date)} (${esc(dayTitle(x.day))})`).join(', ')}.</p>`:'<p class="hint">No training days coming up yet.</p>'}
     <button class="btn primary big" data-act="close-sheet">Done</button></div>`;
 }
@@ -106,7 +108,7 @@ function swapSheet(c){
   const inf=dayAt(c,today()),r=inf.day.exercises.find(x=>x.id===ui.swapRow);if(!r)return'';
   const orig=exById(r.exId),cur=swapFor(c,r);
   return `<div class="card hud sheetcard" role="dialog" aria-label="Swap exercise"><div class="section-hd"><div><p class="eyebrow">Swap for today</p><h2>${esc(orig.name)}</h2></div><button class="icon-btn" data-act="close-sheet" aria-label="Close">✕</button></div>
-    <p class="hint">Machine busy or missing? Pick a similar exercise. It only changes today, and ${esc(first(coach(c.coachId).name))} is told.</p>
+    <p class="hint">Machine busy or missing? Pick a similar exercise. It only changes today${isSolo(c)?'':`, and ${esc(first(coachOf(c).name))} is told`}.</p>
     <ul class="swaplist">${similarExercises(r.exId).map(e=>`<li><button class="swapitem ${cur===e.id?'on':''}" data-act="do-swap" data-row="${r.id}" data-ex="${e.id}">${thumb(e)}<span><b>${esc(e.name)}</b><small>${famOf(e)===famOf(orig)?'Same movement':'Same muscle group'}</small></span>${cur===e.id?'<span class="pill ok">Chosen</span>':''}</button></li>`).join('')}</ul>
     ${cur?`<button class="btn ghost" data-act="undo-swap" data-row="${r.id}">Go back to ${esc(orig.name)}</button>`:''}</div>`;
 }
@@ -219,6 +221,13 @@ function cropSheet(){
     <label class="cropzoom"><span aria-hidden="true">−</span><input type="range" id="crop-zoom" min="${cropMin(c)}" max="4" step="0.01" value="${c.zoom}" data-cropzoom aria-label="Zoom"><span aria-hidden="true">+</span></label>
     <div class="cs-actions"><button class="btn primary" data-act="crop-save">Save ${c.for==='avatar'?'picture':'logo'}</button><button class="btn ghost" data-act="close-sheet">Cancel</button></div></div>`;
 }
+// someone training on their own joins a coach with the code from the coach's invite
+function joinCoachSheet(){
+  return `<form class="card hud sheetcard" data-form="join-coach" role="dialog" aria-label="Join a coach"><div class="section-hd"><h2>Join a coach</h2><button type="button" class="icon-btn" data-act="close-sheet" aria-label="Close">✕</button></div>
+    <p class="hint">Your coach sets your routine and sees your workouts. Everything you've logged stays with you.</p>
+    <label>Invite code<input id="jc-code" name="code" placeholder="e.g. K7P2QX" autocapitalize="characters" autocomplete="off" required maxlength="80"></label>
+    <button class="btn primary big">Join</button></form>`;
+}
 // the coach's settings for one client: name, goal, and remove
 function clientSheet(c){
   if(!c)return'';
@@ -240,13 +249,15 @@ function nameSheet(c){
 }
 
 /* Themes: each person's own colours. Kept apart from the app data so Reset sample data leaves them alone. */
-const THEMES=[['lime','Lime','Black and lime, the Spotter look','#050806','#B8F24C','#B8F24C'],['pink','Pink','Pitch black, hot pink and orchid','#000000','#FF5FAE','#C77DFF'],['ocean','Lagoon','Deep sea, aqua and blue','#020B10','#3FE0D0','#4D9BFF'],['violet','Nebula','Night sky, lilac and pink','#07040F','#B98CFF','#FF6EC7'],['ember','Sunset','Dark ember, orange and gold','#0D0605','#FF8A4C','#F9C74F'],['blush','Rose','Light mode in rose and peach','#FFF5F8','#D6336C','#F08A5D'],['daylight','Mint','Light mode in mint and teal','#F3FAF6','#0B7F53','#1A9BA8']];
+const THEMES=[['lime','Lime','Black and lime, the Gymnazo look','#050806','#B8F24C','#B8F24C'],['pink','Pink','Pitch black, hot pink and orchid','#000000','#FF5FAE','#C77DFF'],['ocean','Lagoon','Deep sea, aqua and blue','#020B10','#3FE0D0','#4D9BFF'],['violet','Nebula','Night sky, lilac and pink','#07040F','#B98CFF','#FF6EC7'],['ember','Sunset','Dark ember, orange and gold','#0D0605','#FF8A4C','#F9C74F'],['blush','Rose','Light mode in rose and peach','#FFF5F8','#D6336C','#F08A5D'],['daylight','Mint','Light mode in mint and teal','#F3FAF6','#0B7F53','#1A9BA8']];
 const PALETTE='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-1 2-1.9 0-1.4-1-1.8-1-3 0-1 .8-1.6 1.8-1.6H17a4 4 0 0 0 4-4C21 6.2 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7.5" r="1"/><circle cx="15" cy="7.5" r="1"/></svg>';
-let themeMem={};try{themeMem=JSON.parse(localStorage.getItem('spotter-themes'))||{}}catch(e){}
+let themeMem={};try{themeMem=JSON.parse(localStorage.getItem('gymnazo-themes'))||{}}catch(e){}
 // a theme that no longer exists (like the old Gold) falls back to lime
-const themeOf=()=>{const t=themeMem[`${ui.user.role}:${ui.user.id}`];return THEMES.some(x=>x[0]===t)?t:'lime'};
-function applyTheme(){const r=document.documentElement,t=themeOf();if(r.dataset&&r.dataset.skin!==t){r.dataset.skin=t;SpotterAnim.reset()}}
-function setTheme(t){themeMem[`${ui.user.role}:${ui.user.id}`]=t;try{localStorage.setItem('spotter-themes',JSON.stringify(themeMem))}catch(e){}applyTheme()}
+const themeKey=()=>{if(ui.user.role==='coach')return `coach:${ui.user.id}`;const c=client(ui.user.id);return c&&c.asCoachId?`coach:${c.asCoachId}`:`client:${ui.user.id}`};
+const themeOf=()=>{const t=themeMem[themeKey()];return THEMES.some(x=>x[0]===t)?t:'lime'};
+function applyTheme(){const r=document.documentElement,t=ui.welcome?(ui.welcome.theme||'lime'):themeOf(); // during the welcome, show the theme being picked
+  if(r.dataset&&r.dataset.skin!==t){r.dataset.skin=t;GymnazoAnim.reset()}}
+function setTheme(t){themeMem[themeKey()]=t;try{localStorage.setItem('gymnazo-themes',JSON.stringify(themeMem))}catch(e){}applyTheme()}
 const themeButton=()=>`<button class="themebtn" data-act="theme-open">${PALETTE}Themes</button>`;
 function themeSheet(){
   const cur=themeOf();
@@ -275,7 +286,7 @@ function invitesView(co){
 const NBELL='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg>';
 // the list in the bell. Coaches get them from what clients do; clients get them from coach changes
 function notifications(){
-  if(ui.user.role==='client'){const c=client(ui.user.id),cn=first(coach(c.coachId).name);
+  if(ui.user.role==='client'){const c=client(ui.user.id),cn=first(coachOf(c).name);
     const msgs=c.messages.filter(m=>m.from==='coach').slice(-5).map(m=>({ts:m.ts,text:`${cn} sent you a message.`,go:'chat'}));
     return[...c.notes.map(n=>({ts:n.ts,text:n.text,go:n.go||'today'})).filter(n=>n.go!=='meals'&&pref(c,'nRoutine')),...(pref(c,'nMsgs')?msgs:[])].sort((a,b)=>b.ts-a.ts).slice(0,15)}
   const out=[],since=Date.now()-21*864e5,me=coach(ui.user.id);
@@ -317,23 +328,60 @@ function settingsView(){
   const link=(act,l,val,v='')=>`<button class="optrow optlink" data-act="${act}" ${v?`data-v="${v}"`:''}><span><b>${l}</b></span><span class="optval">${esc(val)} <i aria-hidden="true">›</i></span></button>`;
   const group=(t,rows)=>`<section class="optgroup"><h3>${t}</h3><div class="optcard">${rows}</div></section>`;
   const themeName=(THEMES.find(x=>x[0]===themeOf())||THEMES[0])[1];
+  const outRow=`<button class="btn ghost logout" data-act="logout">Log out</button>`;
+  const modeRow=group('Mode',link('mode-open','Switch mode',coachSide?'Coach':'Individual'));
   const head=`${backBtn(coachSide?'clients':'today','Back','settings-back')}<header class="hd"><h1>Settings</h1></header>`;
   if(coachSide)return head+`<form class="card hud" data-form="coach-profile"><h3>Profile</h3><label class="logodrop" for="set-logo">${o.logo?`<img src="${o.logo}" alt="Your logo">`:`<span class="mono">${initials(o.business||o.name)}</span>`}<span>${o.logo?'Change logo':'Add a logo'}</span><input type="file" id="set-logo" accept="image/*" data-setlogo></label>
     <div class="row2"><label>Your name<input id="set-name" name="name" value="${esc(o.name)}" required maxlength="40"></label><label>Business name<input id="set-biz" name="business" value="${esc(o.business||'')}" maxlength="40"></label></div><button class="btn">Save profile</button></form>`
-    +group('Appearance',link('theme-open','Theme',themeName))
+    +modeRow+group('Appearance',link('theme-open','Theme',themeName))
     +group('App',link('install-open','Add to home screen',isInstalled()?'Installed':''))
     +group('Clients',sel('missAfter','Flag a client in red after','Days without a workout, once they have also missed a planned one.',[[2,'2 days'],[3,'3 days'],[5,'5 days'],[7,'7 days']])+tog('showSummary','Weekly summary on Clients page','')+sel('defaultRest','Default rest for new exercises','You can still change it on each exercise.',[[60,'1:00'],[90,'1:30'],[120,'2:00'],[180,'3:00']]))
     +group('Check-ins',sel('ciDay','Check-in day','Clients see a reminder from this day until they send it.',[[4,'Friday'],[5,'Saturday'],[6,'Sunday'],[0,'Monday']]))
     +group('Notifications',tog('nWorkouts','Finished workouts','')+tog('nNotes','Check-ins, notes and swaps','Weekly check-ins, form checks, workout notes and swaps.')+tog('nMsgs','New messages','')+tog('nEnergy','Low energy days','')+tog('nJoins','Accepted invites',''))
-    +group('Your data',link('export-data','Download a backup','')+(past?link('show-past','Past clients',String(past),'clients'):''));
+    +group('Your data',link('export-data','Download a backup','')+(past?link('show-past','Past clients',String(past),'clients'):''))+outRow;
   const r=o.reminder||{on:false,time:'07:00'};
   const pic=`<label class="optrow optlink" for="my-pic"><span class="pic-row">${avatarOf(o)}<b>Profile picture</b></span><span class="optval">${o.avatar?'Change':'Add'} <i aria-hidden="true">›</i></span><input type="file" id="my-pic" accept="image/*" data-mypic hidden></label>`+(o.avatar?`<button class="optrow optlink" data-act="pic-remove"><span><b>Remove picture</b></span></button>`:'');
+  const solo=isSolo(o);
   return head+group('Profile',pic+link('edit-myname','Your name',myName(o)))
-    +group('Appearance',link('theme-open','Theme',themeName))
+    +modeRow+group('Appearance',link('theme-open','Theme',themeName))
     +group('App',link('install-open','Add to home screen',isInstalled()?'Installed':''))
     +group('Workouts',link('rem-open','Workout reminders',r.on?fmt12(r.time):'Off')+tog('autoTimer','Start rest timer automatically','Starts after you confirm a set.')+tog('extraRest','Longer rests on tired days','Adds 30 to 60 seconds when your energy check is low.')+tog('vibrate','Vibrate when rest ends','')+tog('energyAsk','Ask how I feel before training','The daily energy check.'))
-    +group('Check-ins',tog('ciRemind','Remind me to check in','A small reminder on Today, once a week.'))
-    +group('Notifications',tog('nRoutine','Routine changes','')+tog('nMsgs','New messages',''))
-    +group('Your coach',link('nav',`Message ${esc(first(coach(o.coachId).name))}`,'','chat'))
-    +group('Your data',link('export-data','Download my data',''));
+    +group(solo?'Weekly log':'Check-ins',tog('ciRemind',solo?'Remind me to log my week':'Remind me to check in','A small reminder on Today, once a week.'))
+    +(solo?'':group('Notifications',tog('nRoutine','Routine changes','')+tog('nMsgs','New messages','')))
+    +(solo?group('Coach',link('join-open','Join a coach',''))
+      :group('Your coach',link('nav',`Message ${esc(first(coachOf(o).name))}`,'','chat')+(ui.confirm&&ui.confirm.kind==='leave'
+        ?`<div class="optrow leave-confirm"><span><b>Leave ${esc(first(coachOf(o).name))}?</b><small>You keep your routine and history, and train on your own.</small></span><span class="btnrow"><button class="btn danger sm" data-act="leave-coach">Leave</button><button class="btn ghost sm" data-act="cancel-confirm">Cancel</button></span></div>`
+        :`<button class="optrow optlink danger-row" data-act="leave-ask"><span><b>Leave this coach</b></span><span class="optval"><i aria-hidden="true">›</i></span></button>`)))
+    +group('Your data',link('export-data','Download my data',''))+outRow;
+}
+
+
+/* ---------- the welcome: what a brand new person sees the first time they open the app ----------
+   A few short questions decide their experience: train on my own, train with a coach (invite code), or coach others.
+   Then their name and a theme. ui.welcome = {step, path, code, name, theme}. */
+const WL_ORDER=w=>['hello','path',...(w.path==='coached'?['code']:[]),'name','theme','done'];
+function welcomeView(){
+  const w=ui.welcome,order=WL_ORDER(w),i=order.indexOf(w.step),pct=Math.round(i/(order.length-1)*100);
+  const top=w.step==='hello'?'':`<div class="wl-top"><button class="back" data-act="wl-back">‹ Back</button><div class="wl-bar" aria-hidden="true"><i style="width:${pct}%"></i></div></div>`;
+  const card=(v,title,sub,icon,n)=>`<button class="modecard wl-in" style="--i:${n}" data-act="wl-path" data-v="${v}"><span class="mc-ic" aria-hidden="true">${icon}</span><span class="mc-txt"><b>${title}</b><small>${sub}</small></span><span class="chev" aria-hidden="true">›</span></button>`;
+  let body='';
+  if(w.step==='hello')body=`<div class="wl-hero"><span class="wl-logo">${APP_MARK}</span><h1 class="wl-in" style="--i:2">Gymnazo</h1><p class="wl-tag wl-in" style="--i:3">Train. Track. Get stronger.</p></div>
+    <div class="wl-foot wl-in" style="--i:5"><button class="btn primary big" data-act="wl-start">Get started</button><button class="linkbtn" data-act="wl-login">I already have an account</button></div>`;
+  else if(w.step==='path')body=`<header class="hd wl-in" style="--i:0"><p class="eyebrow">Welcome</p><h1>What brings you here?</h1></header>
+    ${card('solo','Train on my own','Build your own workouts and track your progress.',ICON.today,1)}
+    ${card('coached','Train with my coach',"Your coach sent you a code. They'll set your workouts.",ICON.invites,2)}
+    ${card('coach','I coach others',"Plan your clients' workouts and follow their progress.",ICON.clients,3)}
+    <p class="hint wl-in" style="--i:4">You can change this later, and use more than one.</p>`;
+  else if(w.step==='code')body=`<header class="hd wl-in" style="--i:0"><p class="eyebrow">Your coach</p><h1>Enter your invite code</h1><p class="sub">It's in the link your coach sent you.</p></header>
+    <input class="wl-input wl-in" style="--i:1" id="wl-code" data-wl="code" value="${esc(w.code)}" placeholder="e.g. K7P2QX" autocapitalize="characters" autocomplete="off" maxlength="80" aria-label="Invite code">
+    <div class="wl-foot wl-in" style="--i:2"><button class="btn primary big" id="wl-next" data-act="wl-next" ${w.code.trim()?'':'disabled'}>Continue</button><button class="linkbtn" data-act="wl-nocode">I don't have a code yet</button></div>`;
+  else if(w.step==='name')body=`<header class="hd wl-in" style="--i:0"><p class="eyebrow">${w.path==='coach'?'Coach':w.path==='coached'?'Almost there':'Your training'}</p><h1>What should we call you?</h1></header>
+    <input class="wl-input wl-in" style="--i:1" id="wl-name" data-wl="name" value="${esc(w.name)}" placeholder="Your first name" autocomplete="given-name" maxlength="40" aria-label="Your name">
+    <div class="wl-foot wl-in" style="--i:2"><button class="btn primary big" id="wl-next" data-act="wl-next" ${w.name.trim()?'':'disabled'}>Continue</button></div>`;
+  else if(w.step==='theme')body=`<header class="hd wl-in" style="--i:0"><p class="eyebrow">Make it yours</p><h1>Pick your look</h1></header>
+    <div class="wl-themes">${THEMES.map(([k,n,,bg,ac,ac2],j)=>`<button class="wl-theme wl-in ${w.theme===k?'on':''}" style="--i:${j+1}" data-act="wl-theme" data-v="${k}" aria-pressed="${w.theme===k}"><span class="wl-sw" style="background:${bg}"><i style="background:linear-gradient(135deg,${ac},${ac2})"></i></span><b>${n}</b></button>`).join('')}</div>
+    <div class="wl-foot"><button class="btn primary big" data-act="wl-next">Continue</button></div>`;
+  else body=`<div class="wl-hero"><span class="wl-logo done">${APP_MARK}</span><h1 class="wl-in" style="--i:2">You're in, ${esc(first(w.name.trim()))}</h1><p class="wl-tag wl-in" style="--i:3">${w.path==='coach'?"Next, a quick setup for your coaching.":w.path==='coached'?'Your coach is connected.':"Next, build your first routine."}</p></div>
+    <div class="wl-foot wl-in" style="--i:5"><button class="btn primary big" data-act="wl-finish">Let's go</button></div>`;
+  return `<main class="screen welcome" data-step="${w.step}"><span class="wl-glow" aria-hidden="true"></span>${top}<div class="wl-body">${body}</div></main>`;
 }

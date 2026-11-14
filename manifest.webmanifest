@@ -1,7 +1,7 @@
 {
-  "name": "Spotter",
-  "short_name": "Spotter",
-  "description": "Coaching app for personal trainers and their clients",
+  "name": "Gymnazo",
+  "short_name": "Gymnazo",
+  "description": "Training app for people who train on their own and for coaches",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

@@ -9,7 +9,8 @@ function libraryView(){
   <form class="card hud" data-form="add-ex"><h2>Add your own exercise</h2>
     <label>Name<input id="ae-name" name="name" required placeholder="Landmine row"></label>
     <div class="row2"><label>Muscle group<select id="ae-group" name="group">${GROUPS.map(g=>`<option>${g}</option>`).join('')}</select></label>
-    <label>Animation (until you add a video)<select id="ae-like" name="like">${S.exercises.filter(e=>!e.custom).map(e=>`<option value="${e.id}">Like ${esc(e.name)}</option>`).join('')}</select></label></div>
+    <label>Counted in<select id="ae-unit" name="unit"><option value="reps">Reps</option><option value="sec">Seconds</option><option value="min">Minutes</option></select></label></div>
+    <label>Animation (until you add a video)<select id="ae-like" name="like">${S.exercises.filter(e=>!e.custom).map(e=>`<option value="${e.id}">Like ${esc(e.name)}</option>`).join('')}</select></label>
     <label>Your own video (optional, under 3 MB)<input id="ae-video" type="file" name="video" accept="video/mp4,video/webm,video/quicktime"></label>
     <p class="hint">Short clips of 3 to 6 seconds work best.</p>
     <button class="btn primary">Add exercise</button></form>`;
